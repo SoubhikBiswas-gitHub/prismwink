@@ -1,0 +1,77 @@
+{
+  "product": "Prismwink",
+  "assets": [
+    {
+      "file": "graphics/icon-128.png",
+      "width": 128,
+      "height": 128,
+      "kind": "icon"
+    },
+    {
+      "file": "graphics/01-studio.png",
+      "width": 1280,
+      "height": 800,
+      "kind": "screenshot"
+    },
+    {
+      "file": "graphics/02-dust.png",
+      "width": 1280,
+      "height": 800,
+      "kind": "screenshot"
+    },
+    {
+      "file": "graphics/03-settings.png",
+      "width": 1280,
+      "height": 800,
+      "kind": "screenshot"
+    },
+    {
+      "file": "graphics/04-scenes.png",
+      "width": 1280,
+      "height": 800,
+      "kind": "screenshot"
+    },
+    {
+      "file": "graphics/05-setup.png",
+      "width": 1280,
+      "height": 800,
+      "kind": "screenshot"
+    },
+    {
+      "file": "graphics/promo-small.png",
+      "width": 440,
+      "height": 280,
+      "kind": "promotional"
+    },
+    {
+      "file": "graphics/promo-marquee.png",
+      "width": 1400,
+      "height": 560,
+      "kind": "promotional"
+    }
+  ],
+  "notes": [
+    {
+      "file": "01-studio.png",
+      "description": "Four working effects in the permission-free studio demo."
+    },
+    {
+      "file": "02-dust.png",
+      "description": "The actual demo renderer during a dust transition; microphone behavior is explained in accompanying copy."
+    },
+    {
+      "file": "03-settings.png",
+      "description": "Actual direction, palette, detail and reduced-motion controls."
+    },
+    {
+      "file": "04-scenes.png",
+      "description": "Actual saved scene controls and named preset examples."
+    },
+    {
+      "file": "05-setup.png",
+      "description": "Actual setup guide with accurate camera and still-room behavior."
+    }
+  ],
+  "source": "Actual installed extension UI and original repository vector mark; screenshots show the illustrated practice demo.",
+  "liveMeetVerified": false
+}

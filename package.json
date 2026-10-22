@@ -1,0 +1,41 @@
+{
+  "name": "prismwink",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A local camera effect and finger gesture toggle for Google Meet.",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "tsx --test tests/*.test.ts",
+    "check": "npm run typecheck && npm test && npm run build",
+    "preview": "vite preview --host 127.0.0.1",
+    "package": "node scripts/package.mjs",
+    "test:browser": "tsx tests/browser.ts",
+    "typecheck": "tsc --noEmit",
+    "dev": "node scripts/prepare.mjs && vite",
+    "publish:package": "tsx scripts/publish-package.ts",
+    "store:assets": "tsx scripts/store-assets.ts"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "0.10.32",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "3.0.0",
+    "@playwright/test": "1.56.1",
+    "@types/chrome": "0.3.6",
+    "@types/node": "25.0.10",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "esbuild": "0.28.2",
+    "sharp": "0.35.5",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2",
+    "vite": "8.3.5"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

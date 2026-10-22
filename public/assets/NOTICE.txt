@@ -1,0 +1,9 @@
+Prismwink includes locally bundled third-party runtime and vision assets.
+
+@mediapipe/tasks-vision: see its included Apache 2.0 license and notices.
+Vision asset sources:
+https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter_landscape/float16/1/selfie_segmenter_landscape.tflite
+https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task
+
+Bricolage Grotesque and Manrope font licenses are included in assets/fonts/.
+The sample room, sample person and prism mark are original editable SVG assets.

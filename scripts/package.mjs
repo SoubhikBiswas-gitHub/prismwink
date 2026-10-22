@@ -1,0 +1,10 @@
+import {readFile,mkdir,readdir,stat} from 'node:fs/promises';
+import {execFileSync} from 'node:child_process';
+import path from 'node:path';
+const root=path.resolve(import.meta.dirname,'..');
+const manifest=JSON.parse(await readFile(path.join(root,'dist/manifest.json'),'utf8'));
+if(manifest.name!=='Prismwink')throw new Error('Build the extension before packaging.');
+await mkdir(path.join(root,'releases'),{recursive:true});
+const dest=path.join(root,'releases',`prismwink-${manifest.version}.zip`);
+execFileSync('zip',['-qr',dest,'.','-x','*.map'],{cwd:path.join(root,'dist')});
+console.log(dest);
