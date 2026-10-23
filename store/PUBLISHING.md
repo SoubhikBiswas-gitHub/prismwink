@@ -1,22 +1,22 @@
 # Chrome Web Store release preparation
 
-Prepared 23 October 2026. Current source version: 0.1.0 (development candidate). No store submission or approval is claimed.
+Prepared 24 October 2026. Release candidate: 1.0.0. Packaging and review submission are separate steps; no store approval is claimed.
 
 ## Release order
 
 1. Complete the real receiving-side Meet acceptance checks below. Fix any failures before submission.
 2. In an interactive terminal, run npm run publish:package. Choose patch, minor or major explicitly. For a first public beta from 0.1.0, patch produces 0.1.1; use major for a validated 1.0.0 release. Never reuse or decrease an already uploaded store version.
 3. The command checks, builds and places Prismwink-vX.Y.Z.zip on the Desktop. It restores version files on failure and never overwrites an existing ZIP.
-4. Capture new 1280×800 screenshots from the final build in a real Meet call (ready pill, mid-vanish, hidden room). Keep the listing claims aligned with the exact ZIP.
+4. Use the current 1280×800 popup capture for the controls screenshot. Label its illustrated effect preview explicitly. Add live-call screenshots only after a receiving-side call has actually been captured. Keep listing claims aligned with the exact ZIP.
 5. Push the verified code, version and listing assets to main in the public project repository.
-6. In the Chrome profile identified by the owner as Ace Vision seven, verify the signed-in publisher email and existing dashboard. Upload the ZIP as a new item, complete listing.md, reviewer-instructions.md and the privacy form preparation. Account access is not yet verified for that profile.
+6. In the Chrome profile identified by the owner as Ace Vision seven, verify the signed-in publisher email and existing dashboard. Upload the ZIP to the existing Prismwink item glfhdbijbhlggndimmgfcdkapmkcedod, complete listing.md, reviewer-instructions.md and the privacy form preparation. Use sbiswas773@gmail.com for the publisher account. The owner reports identity verification complete and the dashboard is accessible again. Verify the signed-in email before submission.
 7. Check all draft warnings and preview the public listing. Submit only after acceptance is complete and the account/data declarations are confirmed. Deferred publishing can keep an approved item from becoming public immediately; review time and approval are controlled by Google.
 
 ## Artwork pack
 
-The 128×128 store icon is in store/graphics/icon-128.png and its source is store/source/store-icon.svg. The previous screenshots and promo tiles showed the removed practice studio and were deleted. At least one new screenshot of the current extension is required before upload; promo tiles are optional. No ratings, user counts or unverified live-call claims.
+The 128×128 store icon is in store/graphics/icon-128.png and its source is store/source/store-icon.svg. The previous screenshots and promo tiles show the removed practice studio and must be replaced before submission. The current controls screenshot and both promotional tiles are generated from a capture of the actual installed popup. They label its illustrated preview accurately; they are not evidence of a live Meet call. Regenerate with npm run test:browser and npm run store:assets. No ratings, user counts or unverified live-call claims.
 
-## Required acceptance still pending
+## Real-call acceptance still pending
 
 - Two-person Google Meet receiving-side disappearance/mute/return and manual mute precedence.
 - A 30-minute call, background-tab behavior and stop/restart.
@@ -35,3 +35,18 @@ https://developer.chrome.com/docs/webstore/prepare
 https://developer.chrome.com/docs/webstore/program-policies/user-data-faq
 
 No purchased domain or separate application hosting is required. The public repository can provide homepage, support and privacy-policy links.
+
+## 1.0.0 package verification
+
+- Desktop archive: Prismwink-v1.0.0.zip; 13,251,681 bytes; 34 files.
+- SHA-256: c0c162ad3f758d7c08deb21bdc60f81d4ba4d0d84a56ff86bfb77ac583c06ff1.
+- ZIP integrity passed; every packaged file matches the tested production build. No source maps or unsafe archive paths.
+- Typecheck, production build and 37 unit tests passed. Both browser regression tests passed, alongside the local receiving-peer browser workflow.
+- These checks do not establish real Google Meet compatibility, background-call reliability or low-powered hardware performance. The real-call acceptance list above remains outstanding.
+
+## Release documents
+
+- [Store listing copy](listing.md)
+- [Privacy form preparation](privacy-disclosures.md)
+- [Reviewer instructions](reviewer-instructions.md)
+- [Changelog](../CHANGELOG.md)

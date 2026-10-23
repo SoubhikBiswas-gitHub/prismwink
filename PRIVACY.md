@@ -1,18 +1,18 @@
 # Prismwink privacy policy
 
-Effective date: 23 October 2026
+Effective date: 24 October 2026
 
 Prismwink adds a vanish effect and microphone control to Google Meet. It has no account, analytics, advertising or server of its own.
 
 ## What it processes
 
-Camera frames are processed on your computer to draw your outgoing camera image. Each frame yields a person outline and hand landmarks. These are used to recognise the snap gesture and to learn what your room looks like behind you. Nothing identifies you, and no profile is built. The processing code and models are bundled with the extension.
+Camera frames are processed on your computer to draw your outgoing camera image. Each frame yields a person outline and hand landmarks. These are used to recognise the snap and double-clap gestures and to learn what your room looks like behind you. Double clap is detected from the camera image, without analysing microphone audio. Nothing identifies you, and no profile is built. The processing code and models are bundled with the extension.
 
-The learned room image, outlines and landmarks exist only in memory. They are discarded when the camera stops or the Meet tab closes, and are never saved to disk.
+The learned room image, outlines and landmarks exist only in memory and are never saved to disk. Learned room images can remain cached in the Meet page after the camera stops; closing or reloading the Meet tab discards them.
 
 For the microphone, Prismwink reads and changes only whether the outgoing microphone is on or muted. It does not listen to, analyse, record or transmit audio.
 
-Chrome's local extension storage holds one setting: whether the hand gesture is on.
+Chrome's local extension storage holds the snap and double-clap switches, the popup theme, and the meeting pill's position and collapsed state. Nothing is stored in Chrome sync.
 
 ## What is shared
 
@@ -20,7 +20,7 @@ During a call, Google Meet sends your processed camera image and your microphone
 
 ## Camera and controls
 
-The camera stays on while you are hidden, so Prismwink can see your snap to return. Turn your camera off in Meet to stop it. Camera and microphone permissions are controlled by Chrome. Removing the extension removes its stored setting.
+The camera stays on while you are hidden, so Prismwink can see your snap to return. Turn your camera off in Meet to stop it. Camera and microphone permissions are controlled by Chrome. Removing the extension removes its stored preferences.
 
 ## Limited Use
 

@@ -165,6 +165,8 @@ try {
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${id}/popup.html`);
   await popup.getByRole('heading', { name: /Snap to vanish/ }).waitFor();
+  await popup.evaluate(() => document.fonts.ready);
+  await popup.locator('body').screenshot({ path: path.join(evidence, 'popup-current.png') });
   const gestureSwitch = popup.getByRole('switch', { name: /^Snap/ });
   assert.equal(await gestureSwitch.isChecked(), true);
   await gestureSwitch.click();

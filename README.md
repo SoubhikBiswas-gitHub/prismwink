@@ -30,6 +30,7 @@ There is no setup step and nobody is asked to move. Prismwink quietly learns you
 - `npm run check`: strict type checks, unit tests and the production build.
 - `npm run test:browser`: loads the built extension in Chromium with a fake camera (a real portrait) and a WebRTC receiver. It checks the full vanish/return, mute and shortcut flow. Run `npx playwright install chromium` once first.
 - `npm run publish:package`: choose a version bump, validate, build and create a ZIP on your Desktop.
+- `npm run store:assets`: render current store artwork after the browser checks have captured the installed popup.
 
 ## Limits
 
@@ -38,3 +39,5 @@ There is no setup step and nobody is asked to move. Prismwink quietly learns you
 - Automated tests use a fake camera and a local receiver, not a real Meet call or a real hand. Check the gesture and a live call with a second participant before release.
 
 See [PRIVACY.md](PRIVACY.md) and the [visual system](DESIGN.md).
+
+For release preparation, see the [publishing guide](store/PUBLISHING.md) and [changelog](CHANGELOG.md).

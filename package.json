@@ -1,6 +1,6 @@
 {
   "name": "prismwink",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Snap your fingers in Google Meet to turn to dust and mute. Snap again to come back.",
@@ -13,7 +13,8 @@
     "test:browser": "tsx tests/browser.ts && PRISMWINK_BROWSER=1 tsx --test tests/engine.regression-1.test.ts tests/hidden-room.test.ts",
     "typecheck": "tsc --noEmit",
     "dev": "node scripts/prepare.mjs && vite",
-    "publish:package": "tsx scripts/publish-package.ts"
+    "publish:package": "tsx scripts/publish-package.ts",
+    "store:assets": "tsx scripts/store-assets.ts"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "0.10.32",

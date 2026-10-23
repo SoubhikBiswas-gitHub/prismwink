@@ -12,13 +12,13 @@ Snap your fingers in Google Meet to turn to dust and mute. Snap again to come ba
 
 Snap your fingers on camera and turn to dust.
 
-Prismwink adds one simple trick to Google Meet. Raise a hand, press your thumb and middle finger together, and snap. You dissolve into dust, your room stays behind, and your microphone mutes. Snap again and you reassemble, with your microphone back on.
+Prismwink adds one simple trick to Google Meet. Raise a hand, press your thumb and middle finger together, and snap, or clap twice. You dissolve into dust, your room stays behind, and your microphone mutes. Do it again and you reassemble. Your microphone returns only if Prismwink muted it.
 
 No setup. Prismwink quietly learns the room behind you while you talk, so there is nothing to capture and no need to move. Step away while hidden and the empty room fills itself in for real.
 
 Your microphone, your call. Prismwink mutes with Meet's own button, so everyone sees you as muted. It turns the mic back on only if it muted it. A mic you muted yourself stays muted.
 
-Works without the gesture too. Use the small on-screen button or Alt+Shift+V.
+Works without the gesture too. Use the movable on-screen Vanish/Return button or Alt+Shift+V. Switch snap and double clap on independently, and choose a light or dark popup theme.
 
 Private by design. The camera, hand tracking and effect all run on your computer. Nothing is uploaded and no account is needed.
 
@@ -30,11 +30,11 @@ Good to know:
 ## Listing fields
 
 Language: English
-Category: Tools
+Category: Communication
 Homepage: https://github.com/SoubhikBiswas-gitHub/prismwink
 Support: https://github.com/SoubhikBiswas-gitHub/prismwink/issues
 Privacy policy: https://github.com/SoubhikBiswas-gitHub/prismwink/blob/main/PRIVACY.md
 Price: Free
 Mature content: No
 
-Screenshots must come from the current extension in a real Meet call. The previous studio screenshots were removed because the studio no longer exists.
+Use the current installed popup screenshot and label its illustrated effect preview. Live-call screenshots require an actual receiving-side call capture. Replace the old studio screenshots because the studio no longer exists.

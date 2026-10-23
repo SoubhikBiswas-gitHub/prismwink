@@ -50,7 +50,7 @@ Verified sources:
 
 Meeting: one opaque pill in the lower-left corner, above Meet's control bar. It holds a status dot, a one-line status with an optional detail line, and a single Vanish/Return button (at least 36px tall inside a 48px pill). The dot's colour and the text change together: mint for ready or hand seen, violet for an armed pinch or hidden, stardust while busy, red for a failure. The font follows Meet's own (Google Sans, then Roboto).
 
-Popup: a 340px panel with the promise, three steps, a single Hand gesture switch and the shortcut. No other settings.
+Popup: a 360px panel with the promise, three steps, separate Snap and Double clap switches, the shortcut, and Auto/Light/Dark theme controls.
 
 ## Icon and imagery
 
@@ -74,4 +74,4 @@ Design camera off, getting ready, ready, hand seen, armed, vanishing, hidden, re
 
 ## Assets
 
-Editable brand mark and 16/32/48/128 icons are in public/assets. Store screenshots must show the current extension in a real call.
+Editable brand mark and 16/32/48/128 icons are in public/assets. Store screenshots must show the current product. Label illustrated effect previews explicitly; only an actual call capture may be described as live-call imagery.
