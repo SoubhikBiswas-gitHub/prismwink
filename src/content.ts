@@ -3,8 +3,8 @@ import { describe, type Status } from './format';
 interface Placement { x: number; y: number; collapsed: boolean }
 
 const POSE = {
-  middle: { open: 'M19 18 L19 11 L19 5', pinch: 'M19 18 L18.5 13 L15.5 13.5', snapped: 'M19 18 L18 15 L16.5 19.5' },
-  thumb: { open: 'M13.5 26 L9.5 23 L6.5 19.5', pinch: 'M13.5 26 L12.5 19.5 L15 14', snapped: 'M13.5 26 L12.5 18.5 L14 10.5' }
+  middle: { open: 'M21 18 L21 11.5 L21 5', pinch: 'M21 18 L19.4 12.8 L14.8 14.8', snapped: 'M21 18 L20.8 16.4 L20.6 15' },
+  thumb: { open: 'M13.8 24.5 L9.5 21.5 L7 17.5', pinch: 'M13.8 24.5 L12.2 19.6 L13.8 15.6', snapped: 'M13.8 24.5 L10.6 19.8 L10 12.8' }
 };
 
 const STYLE = `
@@ -24,9 +24,11 @@ const STYLE = `
 .ring-track{fill:none;stroke:currentColor;stroke-opacity:.28;stroke-width:2}
 .ring-progress{fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;stroke-dasharray:132;stroke-dashoffset:132;transform:rotate(-90deg);transform-origin:22px 22px;opacity:0}
 .progress .ring-progress{opacity:1;animation:fill var(--duration,2400ms) linear forwards}
-.hand{transform:translate(2px,2px)}
-.palm{fill:currentColor;fill-opacity:.16;stroke:currentColor;stroke-width:2.4;stroke-linejoin:round}
-.finger{fill:none;stroke:currentColor;stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round;transition:d .22s cubic-bezier(.2,.8,.2,1)}
+.hand{transform:translate(2px,1px)}
+.palm{fill:currentColor}
+.finger{fill:none;stroke:currentColor;stroke-width:4.2;stroke-linecap:round;stroke-linejoin:round;transition:d .22s cubic-bezier(.2,.8,.2,1)}
+.finger.knock{stroke:#0d1322;stroke-width:7.4}
+[data-pose=snapped] .middle.knock,[data-pose=open] .knock{opacity:0}
 .middle{d:path("${POSE.middle.open}")}
 .thumb{d:path("${POSE.thumb.open}")}
 [data-pose=pinch] .middle{d:path("${POSE.middle.pinch}")}
@@ -97,7 +99,7 @@ const svg = <K extends keyof SVGElementTagNameMap>(tag: K, attributes: Record<st
     action.setAttribute('aria-label', hidden ? 'Return to camera' : 'Vanish from camera and mute microphone');
     action.disabled = (!status.camera && status.phase === 'visible') || status.phase === 'vanishing' || status.phase === 'returning';
     orb.setAttribute('aria-expanded', String(!placement.collapsed));
-    orb.setAttribute('aria-label', `Prismwink: ${view.title}. ${placement.collapsed ? 'Expand' : 'Collapse'}. Arrow keys move it.`);
+    orb.setAttribute('aria-label', `${view.title === 'Prismwink' ? 'Prismwink' : `Prismwink: ${view.title}`}. ${placement.collapsed ? 'Expand' : 'Collapse'}. Arrow keys move it.`);
     const transitioning = status.phase === 'vanishing' || status.phase === 'returning';
     if (status.phase !== lastPhase) {
       parts.figure.classList.remove('progress', 'burst');
@@ -137,15 +139,17 @@ const svg = <K extends keyof SVGElementTagNameMap>(tag: K, attributes: Record<st
     figure.append(svg('circle', { class: 'ring-track', cx: '22', cy: '22', r: '21' }), svg('circle', { class: 'ring-progress', cx: '22', cy: '22', r: '21' }));
     const hand = svg('g', { class: 'hand' });
     hand.append(
-      svg('path', { class: 'palm', d: 'M13.5 26 C12 22 13 18.5 16.5 18 L26 18.5 C29 19.5 30 23.5 28.5 27.5 C26.5 32 21.5 33 17.5 31.5 C15.5 30.5 14.3 28.5 13.5 26 Z' }),
-      svg('path', { class: 'finger', d: 'M16 18.5 L12.5 12 L10.5 8' }),
-      svg('path', { class: 'finger', d: 'M23 18.5 L23.5 12 L24 8' }),
-      svg('path', { class: 'finger', d: 'M26.5 20 L28 16 L29 12.5' }),
+      svg('path', { class: 'finger', d: 'M17.5 19 L17.5 7' }),
+      svg('path', { class: 'finger', d: 'M25 19 L25.8 8.5' }),
+      svg('path', { class: 'finger', d: 'M28.5 21 L30.6 13' }),
+      svg('path', { class: 'palm', d: 'M13 22.5 C13 19.5 15 17.5 18 17.5 H26 C28.6 17.5 30.4 19.6 30.4 22.2 V27 C30.4 32 26.6 35.2 22 35.2 H20.6 C16.2 35.2 13 31.8 13 27.6 Z' }),
+      svg('path', { class: 'finger knock middle', d: POSE.middle.open }),
       svg('path', { class: 'finger middle', d: POSE.middle.open }),
+      svg('path', { class: 'finger knock thumb', d: POSE.thumb.open }),
       svg('path', { class: 'finger thumb', d: POSE.thumb.open })
     );
     for (const [dx, dy] of [[-7, -6], [0, -9], [7, -6], [-8, 2], [8, 2], [0, 7]]) {
-      const spark = svg('circle', { class: 'spark', cx: '15.5', cy: '13.5', r: '1.4' });
+      const spark = svg('circle', { class: 'spark', cx: '13.8', cy: '14.6', r: '1.4' });
       spark.style.setProperty('--dx', `${dx}px`);
       spark.style.setProperty('--dy', `${dy}px`);
       hand.append(spark);
