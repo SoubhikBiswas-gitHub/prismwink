@@ -9,12 +9,12 @@ Prismwink is a Chrome extension. Everything runs on your computer: the camera, t
 1. Install Node.js 24 or newer, then run `npm ci` and `npm run check`.
 2. Open `chrome://extensions`, turn on Developer mode, choose **Load unpacked** and select the `dist` folder.
 3. Join a Google Meet call with your camera on. Reload any Meet tab that was open before you installed.
-4. Raise a hand, press your thumb and middle finger together, and snap. You dissolve into dust and your mic mutes.
-5. Snap again to come back. Your mic turns back on only if Prismwink muted it.
+4. Raise a hand, press your thumb and middle finger together, and snap, or clap twice. You dissolve into dust and your mic mutes.
+5. Snap or clap twice again to come back. Your mic turns back on only if Prismwink muted it.
 
-A small pill in the lower-left corner shows what Prismwink sees. "Hand seen" means your hand is tracked, and "Now snap" means the pinch is armed. The pill also has a Vanish/Return button. The keyboard shortcut is **Alt+Shift+V**; change it at `chrome://extensions/shortcuts`. The popup can turn the hand gesture off.
+A small pill in the lower-left corner shows what Prismwink sees. "Hand seen" means your hand is tracked, and "Now snap" means the pinch is armed. The pill also has a Vanish/Return button. The keyboard shortcut is **Alt+Shift+V**; change it at `chrome://extensions/shortcuts`. The popup has separate switches for the snap and the double clap. A double clap is two quick claps followed by a pause; one clap or applause of three or more is ignored.
 
-There is no setup step. Prismwink learns your room from the background around you while you are visible. Any area it has never seen, usually right behind you, is filled in smoothly. For a perfect vanish, step out of view for a moment once and the whole room is learned.
+There is no setup step and nobody is asked to move. Prismwink quietly learns your room from the background around you while you are visible, and any area it has never seen, usually right behind you, is filled in.
 
 ## How it works
 

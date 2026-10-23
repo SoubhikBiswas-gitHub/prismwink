@@ -25,7 +25,7 @@ worker.onmessage = (event) => {
     clearTimeout(timeout);
     send({ type: 'ready', segmentation });
   } else if (message?.type === 'error') fail(String(message.message));
-  else if (message?.type === 'result') send({ type: 'result', id: message.id, mask: message.mask, snap: message.snap, hand: message.hand, ms: message.ms }, message.mask ? [message.mask.data.buffer] : []);
+  else if (message?.type === 'result') send({ type: 'result', id: message.id, mask: message.mask, snap: message.snap, hand: message.hand, clap: message.clap, clapPending: message.clapPending, ms: message.ms }, message.mask ? [message.mask.data.buffer] : []);
   else if (message?.type === 'result-error') send({ type: 'frame-error', id: message.id, message: message.message });
 };
 worker.onerror = () => fail('Local camera processing could not start.');
@@ -45,6 +45,6 @@ window.addEventListener('message', (event) => {
     send({ type: 'frame-error', id: data.id, message: 'Camera processing is not ready.' });
     return;
   }
-  worker.postMessage({ type: 'frame', id: data.id, bitmap: data.bitmap, timestamp: data.timestamp, hands: Boolean(data.hands) }, [data.bitmap]);
+  worker.postMessage({ type: 'frame', id: data.id, bitmap: data.bitmap, timestamp: data.timestamp, hands: Boolean(data.hands), claps: Boolean(data.claps) }, [data.bitmap]);
 });
 window.addEventListener('pagehide', () => worker.terminate(), { once: true });

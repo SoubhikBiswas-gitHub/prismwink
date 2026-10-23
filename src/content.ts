@@ -73,8 +73,9 @@ const svg = <K extends keyof SVGElementTagNameMap>(tag: K, attributes: Record<st
 (() => {
   if (document.getElementById('prismwink-pill')) return;
   const origin = location.origin;
-  let status: Status = { camera: false, phase: 'visible', since: Date.now(), duration: 0, mic: 'live', vision: 'loading', error: '', hand: 'none', room: 0, gestures: true, notice: '' };
+  let status: Status = { camera: false, phase: 'visible', since: Date.now(), duration: 0, mic: 'live', vision: 'loading', error: '', hand: 'none', room: 0, gestures: true, claps: true, notice: '' };
   let gestures = true;
+  let claps = true;
   let placement: Placement = { x: -1, y: -1, collapsed: false };
   let host: HTMLDivElement | null = null;
   let frame: HTMLIFrameElement | null = null;
@@ -82,7 +83,7 @@ const svg = <K extends keyof SVGElementTagNameMap>(tag: K, attributes: Record<st
   const parts = {} as { pill: HTMLDivElement; orb: HTMLButtonElement; title: HTMLSpanElement; detail: HTMLSpanElement; action: HTMLButtonElement; figure: SVGSVGElement };
 
   const post = (data: Record<string, unknown>) => window.postMessage({ source: 'prismwink-content', ...data }, origin);
-  const pushSettings = () => post({ type: 'settings', gestures });
+  const pushSettings = () => post({ type: 'settings', gestures, claps });
 
   function render() {
     if (!host) return;
@@ -261,8 +262,9 @@ const svg = <K extends keyof SVGElementTagNameMap>(tag: K, attributes: Record<st
   });
 
   chrome.storage.local.get(['prismwink', 'prismwinkPill']).then((stored) => {
-    const saved = stored.prismwink as { gestures?: boolean } | undefined;
+    const saved = stored.prismwink as { gestures?: boolean; claps?: boolean } | undefined;
     if (typeof saved?.gestures === 'boolean') gestures = saved.gestures;
+    if (typeof saved?.claps === 'boolean') claps = saved.claps;
     const pill = stored.prismwinkPill as Partial<Placement> | undefined;
     if (pill && Number.isFinite(pill.x) && Number.isFinite(pill.y)) placement = { x: Number(pill.x), y: Number(pill.y), collapsed: Boolean(pill.collapsed) };
     pushSettings();
@@ -270,9 +272,10 @@ const svg = <K extends keyof SVGElementTagNameMap>(tag: K, attributes: Record<st
     place();
   }).catch(() => {});
   chrome.storage.onChanged.addListener((changes, area) => {
-    const next = changes.prismwink?.newValue as { gestures?: boolean } | undefined;
-    if (area !== 'local' || typeof next?.gestures !== 'boolean') return;
-    gestures = next.gestures;
+    const next = changes.prismwink?.newValue as { gestures?: boolean; claps?: boolean } | undefined;
+    if (area !== 'local' || !next) return;
+    if (typeof next.gestures === 'boolean') gestures = next.gestures;
+    if (typeof next.claps === 'boolean') claps = next.claps;
     pushSettings();
   });
 

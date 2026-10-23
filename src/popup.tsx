@@ -68,6 +68,7 @@ function ThemeControl({ theme, onChange }: { theme: Theme; onChange: (theme: The
 
 function Popup() {
   const [gestures, setGestures] = useState(true);
+  const [claps, setClaps] = useState(true);
   const [shortcut, setShortcut] = useState('Alt+Shift+V');
   const [theme, setTheme] = useState<Theme>('auto');
 
@@ -75,8 +76,9 @@ function Popup() {
   useEffect(() => {
     if (!hasChrome) return;
     chrome.storage.local.get(['prismwink', 'prismwinkTheme']).then((stored) => {
-      const saved = stored.prismwink as { gestures?: boolean } | undefined;
+      const saved = stored.prismwink as { gestures?: boolean; claps?: boolean } | undefined;
       if (typeof saved?.gestures === 'boolean') setGestures(saved.gestures);
+      if (typeof saved?.claps === 'boolean') setClaps(saved.claps);
       if (['auto', 'light', 'dark'].includes(stored.prismwinkTheme as string)) setTheme(stored.prismwinkTheme as Theme);
     }).catch(() => {});
     chrome.commands?.getAll().then((commands) => {
@@ -84,9 +86,10 @@ function Popup() {
     }).catch(() => {});
   }, []);
 
-  const changeGestures = (value: boolean) => {
-    setGestures(value);
-    if (hasChrome) void chrome.storage.local.set({ prismwink: { gestures: value } });
+  const save = (next: { gestures: boolean; claps: boolean }) => {
+    setGestures(next.gestures);
+    setClaps(next.claps);
+    if (hasChrome) void chrome.storage.local.set({ prismwink: next });
   };
   const changeTheme = (value: Theme) => {
     setTheme(value);
@@ -102,13 +105,17 @@ function Popup() {
     <h1>Snap to vanish.<br />Snap to come back.</h1>
     <ol className="steps">
       <li><b>Raise a hand</b> in your Meet call, camera on.</li>
-      <li><b>Pinch</b> thumb and middle finger, then <b>snap</b>. You turn to dust; your mic mutes.</li>
-      <li><b>Snap again</b> to return. Your mic turns back on only if Prismwink muted it.</li>
+      <li><b>Snap</b> your thumb and middle finger, or <b>clap twice</b>. You turn to dust; your mic mutes.</li>
+      <li><b>Do it again</b> to return. Your mic turns back on only if Prismwink muted it.</li>
     </ol>
     <section className="settings">
       <label className="row">
-        <span><strong>Hand gesture</strong><small>Off: use the button or shortcut</small></span>
-        <input type="checkbox" role="switch" checked={gestures} onChange={(event) => changeGestures(event.currentTarget.checked)} />
+        <span><strong>Snap</strong><small>Thumb and middle finger</small></span>
+        <input type="checkbox" role="switch" checked={gestures} onChange={(event) => save({ gestures: event.currentTarget.checked, claps })} />
+      </label>
+      <label className="row">
+        <span><strong>Double clap</strong><small>Two quick claps; applause is ignored</small></span>
+        <input type="checkbox" role="switch" checked={claps} onChange={(event) => save({ gestures, claps: event.currentTarget.checked })} />
       </label>
       <div className="row">
         <span><strong>Shortcut</strong><small><kbd>{shortcut}</kbd></small></span>
@@ -119,7 +126,7 @@ function Popup() {
         <ThemeControl theme={theme} onChange={changeTheme} />
       </div>
     </section>
-    <footer>Video and audio are processed on this device only. Tip: step out of view once so Prismwink learns your whole room.</footer>
+    <footer>Video and audio are processed on this device only.</footer>
   </>;
 }
 

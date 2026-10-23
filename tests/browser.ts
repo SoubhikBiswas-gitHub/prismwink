@@ -6,7 +6,7 @@ import sharp from 'sharp';
 import { chromium, type BrowserContext, type Page, type Worker } from '@playwright/test';
 
 interface Check { check: string; passed: boolean; detail: string }
-interface Status { camera: boolean; phase: string; vision: string; error: string; hand: string; room: number; gestures: boolean; notice: string; processMs: number; visionMs: number; results: number }
+interface Status { camera: boolean; phase: string; vision: string; error: string; hand: string; room: number; gestures: boolean; claps: boolean; notice: string; processMs: number; visionMs: number; results: number }
 interface Harness {
   hookFirst: boolean;
   status: Status | null;
@@ -165,10 +165,12 @@ try {
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${id}/popup.html`);
   await popup.getByRole('heading', { name: /Snap to vanish/ }).waitFor();
-  const gestureSwitch = popup.getByRole('switch', { name: /Hand gesture/ });
+  const gestureSwitch = popup.getByRole('switch', { name: /^Snap/ });
   assert.equal(await gestureSwitch.isChecked(), true);
   await gestureSwitch.click();
-  assert.deepEqual(await popup.evaluate(() => chrome.storage.local.get('prismwink')), { prismwink: { gestures: false } });
+  assert.deepEqual(await popup.evaluate(() => chrome.storage.local.get('prismwink')), { prismwink: { gestures: false, claps: true } });
+  const clapSwitch = popup.getByRole('switch', { name: /Double clap/ });
+  assert.equal(await clapSwitch.isChecked(), true);
   pass('Popup', 'Explains the gesture, shows the shortcut, and saves the hand gesture switch.');
 
   await context.route('https://meet.google.com/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: harnessHtml }));
@@ -182,7 +184,11 @@ try {
   await until(page, () => (window as unknown as HarnessWindow).harness.status?.gestures === false);
   await gestureSwitch.click();
   await until(page, () => (window as unknown as HarnessWindow).harness.status?.gestures === true);
-  pass('Settings reach the meeting', 'Turning the hand gesture off and on in the popup updates an open Meet tab live.');
+  await clapSwitch.click();
+  await until(page, () => (window as unknown as HarnessWindow).harness.status?.claps === false);
+  await clapSwitch.click();
+  await until(page, () => (window as unknown as HarnessWindow).harness.status?.claps === true);
+  pass('Settings reach the meeting', 'Turning the snap and double clap switches off and on in the popup updates an open Meet tab live.');
 
   await page.getByRole('button', { name: 'Start camera' }).click();
   await until(page, () => { const s = (window as unknown as HarnessWindow).harness.status; return s?.camera && s.vision === 'ready' && s.results > 3; }, 90000);

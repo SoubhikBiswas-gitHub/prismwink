@@ -1,7 +1,7 @@
 import { FilesetResolver, ImageSegmenter, HandLandmarker } from '@mediapipe/tasks-vision';
-import { SnapDetector } from './gesture';
+import { ClapDetector, SnapDetector } from './gesture';
 
-interface FrameRequest { type: 'frame'; id: number; bitmap: ImageBitmap; timestamp: number; hands: boolean }
+interface FrameRequest { type: 'frame'; id: number; bitmap: ImageBitmap; timestamp: number; hands: boolean; claps: boolean }
 type Request = { type: 'init' } | FrameRequest;
 const scope = self as unknown as { location: { href: string }; onmessage: ((event: MessageEvent<Request>) => void) | null; postMessage: (message: unknown, transfer?: Transferable[]) => void };
 
@@ -10,6 +10,7 @@ let hands: HandLandmarker | undefined;
 let loading: Promise<void> | undefined;
 let lastTimestamp = 0;
 const detector = new SnapDetector();
+const clapper = new ClapDetector();
 
 async function load() {
   const root = new URL('assets/', scope.location.href).href;
@@ -37,7 +38,7 @@ async function load() {
   }
 }
 
-function analyse({ id, bitmap, timestamp, hands: wantHands }: FrameRequest) {
+function analyse({ id, bitmap, timestamp, hands: wantSnap, claps: wantClaps }: FrameRequest) {
   const started = performance.now();
   const time = Math.max(Number.isFinite(timestamp) ? timestamp : started, lastTimestamp + 1);
   lastTimestamp = time;
@@ -54,11 +55,16 @@ function analyse({ id, bitmap, timestamp, hands: wantHands }: FrameRequest) {
       mask = { data, width: confidence.width, height: confidence.height };
     }
     let gesture: { snap: boolean; hand: string } = { snap: false, hand: 'none' };
-    if (wantHands) {
+    let clap = { clap: false, pending: false };
+    if (wantSnap || wantClaps) {
       const result = hands!.detectForVideo(bitmap, time);
-      gesture = detector.update({ landmarks: result.landmarks, worldLandmarks: result.worldLandmarks }, time);
-    } else detector.reset();
-    scope.postMessage({ type: 'result', id, mask, ...gesture, ms: performance.now() - started }, mask ? [mask.data.buffer] : []);
+      const frame = { landmarks: result.landmarks, worldLandmarks: result.worldLandmarks };
+      gesture = detector.update(frame, time);
+      if (!wantSnap) { detector.reset(); gesture = { snap: false, hand: result.landmarks.length ? 'hand' : 'none' }; }
+      if (wantClaps) clap = clapper.update(frame, time);
+      else clapper.reset();
+    } else { detector.reset(); clapper.reset(); }
+    scope.postMessage({ type: 'result', id, mask, ...gesture, clap: clap.clap, clapPending: clap.pending, ms: performance.now() - started }, mask ? [mask.data.buffer] : []);
   } finally {
     segmentation?.close();
   }

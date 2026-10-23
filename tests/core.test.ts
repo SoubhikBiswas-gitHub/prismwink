@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SnapDetector, measure, type HandFrame, type Point } from '../src/gesture';
+import { ClapDetector, SnapDetector, measure, type HandFrame, type Point } from '../src/gesture';
 import { backgroundOf, fillHoles, validMask } from '../src/room';
 import { dissolveField } from '../src/effects';
 import { clockTime, describe, friendlyError, since, type Status } from '../src/format';
@@ -170,13 +170,19 @@ test('status wording is honest for every state, including who muted the mic', ()
   assert.equal(describe(base).title, 'Snap to vanish');
   assert.equal(describe(base).pose, 'coach');
   assert.equal(describe(base, true).pose, 'open', 'reduced motion stops the coach loop');
-  assert.equal(describe({ ...base, room: 0.4 }).detail, 'Learning your room · 40%');
+  assert.equal(describe({ ...base, room: 0.4 }).detail, 'Raise a hand, pinch, then snap', 'room learning is silent');
   assert.equal(describe({ ...base, effects: 'limited' }).detail, 'Dust effect needs graphics acceleration');
   assert.deepEqual([describe({ ...base, hand: 'armed' }).tone, describe({ ...base, hand: 'armed' }).pose], ['armed', 'pinch']);
   assert.equal(describe({ ...base, phase: 'vanishing', mic: 'muted' }).detail, 'Mic muted by Prismwink');
   assert.match(describe({ ...base, phase: 'hidden', mic: 'already', since: 0 }, false, 120_000).detail, /2 min · Mic was off$/);
   assert.equal(describe({ ...base, phase: 'hidden', gestures: false }).title, 'You’re hidden');
   assert.equal(describe({ ...base, vision: 'error', error: '' }).detail, 'Use the button or Alt+Shift+V');
+  const both = { ...base, claps: true };
+  assert.equal(describe(both).title, 'Snap or clap twice to vanish');
+  assert.equal(describe({ ...both, gestures: false }).title, 'Clap twice to vanish');
+  assert.equal(describe({ ...both, hand: 'clap' }).title, 'Clap once more');
+  assert.equal(describe({ ...both, phase: 'hidden' }).title, 'Hidden · snap or clap twice');
+  assert.equal(describe({ ...both, gestures: false, claps: false }).title, 'Ready');
 });
 
 test('engine failures become one plain sentence, never a stack trace', () => {
@@ -187,4 +193,67 @@ test('engine failures become one plain sentence, never a stack trace', () => {
   assert.equal(friendlyError('Local camera processing could not load: model file missing\nstack line'), 'model file missing');
   assert.equal(friendlyError(''), 'Gesture tracking is unavailable. Use the button or Alt+Shift+V.');
   assert.ok(friendlyError('x'.repeat(200)).length <= 90);
+});
+
+function twoHands(gap: number): HandFrame {
+  const one = (cx: number) => {
+    const points: Point[] = Array.from({ length: 21 }, () => ({ x: cx, y: 0.5 }));
+    points[0] = { x: cx, y: 0.62 };
+    points[9] = { x: cx, y: 0.5 };
+    points[4] = { x: cx - 0.03, y: 0.52 };
+    points[12] = { x: cx, y: 0.4 };
+    return points;
+  };
+  return { landmarks: [one(0.5 - gap * 0.06), one(0.5 + gap * 0.06)] };
+}
+const oneHand: HandFrame = { landmarks: [twoHands(0).landmarks[0]] };
+
+function claps(detector: ClapDetector, count: number, start = 0, every = 320) {
+  const results = [];
+  let at = start;
+  for (let n = 0; n < count; n++) {
+    results.push(detector.update(twoHands(3), at), detector.update(twoHands(1.6), at + 80), detector.update(twoHands(0.4), at + 150), detector.update(twoHands(2.5), at + 240));
+    at += every;
+  }
+  for (let quiet = 0; quiet < 12; quiet++) results.push(detector.update(twoHands(3), at + quiet * 100));
+  return results;
+}
+
+test('a double clap fires once, after a short pause confirms it was not applause', () => {
+  const results = claps(new ClapDetector(), 2);
+  assert.equal(results.filter((result) => result.clap).length, 1);
+  assert.ok(results.some((result) => result.pending), 'after the first clap the pill can say "Clap once more"');
+});
+
+test('one clap, and applause of three or more, never fire', () => {
+  assert.ok(claps(new ClapDetector(), 1).every((result) => !result.clap));
+  assert.ok(claps(new ClapDetector(), 3).every((result) => !result.clap));
+  assert.ok(claps(new ClapDetector(), 6, 0, 280).every((result) => !result.clap));
+});
+
+test('slowly joining or folding hands is not a clap', () => {
+  const detector = new ClapDetector();
+  const results = [];
+  for (let n = 0; n <= 20; n++) results.push(detector.update(twoHands(3 - n * 0.13), n * 100));
+  for (let n = 0; n < 15; n++) results.push(detector.update(twoHands(0.4), 2100 + n * 100));
+  assert.ok(results.every((result) => !result.clap && !result.pending));
+});
+
+test('hands that blur into one detection at contact still count as claps', () => {
+  const detector = new ClapDetector();
+  const results = [];
+  let at = 0;
+  for (let n = 0; n < 2; n++) {
+    results.push(detector.update(twoHands(2.6), at), detector.update(twoHands(1.9), at + 70), detector.update(oneHand, at + 130), detector.update(twoHands(2.6), at + 230));
+    at += 330;
+  }
+  for (let quiet = 0; quiet < 10; quiet++) results.push(detector.update(twoHands(3), at + quiet * 100));
+  assert.equal(results.filter((result) => result.clap).length, 1);
+});
+
+test('two separate single claps far apart do not add up to a double clap', () => {
+  const detector = new ClapDetector();
+  const first = claps(detector, 1, 0);
+  const second = claps(detector, 1, 3000);
+  assert.ok([...first, ...second].every((result) => !result.clap));
 });

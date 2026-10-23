@@ -55,6 +55,7 @@ const HIDDEN_FILL = '#101218';
   let visionError = Processor && Generator ? '' : friendlyError('This browser cannot process camera frames.');
   let engineOrigin = '';
   let gestures = true;
+  let claps = true;
   let reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   let hand = 'none';
   let handSeenAt = 0;
@@ -72,7 +73,7 @@ const HIDDEN_FILL = '#101218';
 
   function publish() {
     const pipe = active();
-    const status = { camera: Boolean(pipe), phase, since: phaseSince, duration: phase === 'vanishing' ? VANISH_MS : phase === 'returning' ? RETURN_MS : 0, mic: micState, vision, effects, error: visionError, hand, room: pipe?.room ? Math.round(pipe.room.coverage * 100) / 100 : 0, gestures, notice, processMs: Math.round(processMs), visionMs: Math.round(visionMs), results };
+    const status = { camera: Boolean(pipe), phase, since: phaseSince, duration: phase === 'vanishing' ? VANISH_MS : phase === 'returning' ? RETURN_MS : 0, mic: micState, vision, effects, error: visionError, hand, room: pipe?.room ? Math.round(pipe.room.coverage * 100) / 100 : 0, gestures, claps, notice, processMs: Math.round(processMs), visionMs: Math.round(visionMs), results };
     const text = JSON.stringify(status);
     if (text === lastStatus) return;
     lastStatus = text;
@@ -216,7 +217,6 @@ const HIDDEN_FILL = '#101218';
     if (!pipe) { say('Turn on your camera first.'); return; }
     mic.mute();
     begin('vanish');
-    if ((pipe.room?.coverage ?? 0) < 0.5) say('Tip: step out of view for a moment so Prismwink can learn your whole room.');
   }
 
   function resize(pipe: Pipeline, frame: VideoFrame) {
@@ -254,7 +254,7 @@ const HIDDEN_FILL = '#101218';
     createImageBitmap(pipe.pending, { resizeWidth: width, resizeHeight: Math.max(1, Math.round(width * pipe.height / pipe.width)), resizeQuality: 'low' })
       .then((bitmap) => {
         if (pipe.closed) { bitmap.close(); inFlight.delete(id); pipe.inFlight = false; return; }
-        target.postMessage({ source: 'prismwink-hook', type: 'frame', id, bitmap, timestamp: now, hands: gestures }, engineOrigin, [bitmap]);
+        target.postMessage({ source: 'prismwink-hook', type: 'frame', id, bitmap, timestamp: now, hands: gestures, claps }, engineOrigin, [bitmap]);
       })
       .catch(() => { inFlight.delete(id); pipe.inFlight = false; });
   }
@@ -395,7 +395,7 @@ const HIDDEN_FILL = '#101218';
     return generator;
   }
 
-  function onResult(data: { id: number; mask?: PersonMask; snap?: boolean; hand?: string; ms?: number }) {
+  function onResult(data: { id: number; mask?: PersonMask; snap?: boolean; hand?: string; clap?: boolean; clapPending?: boolean; ms?: number }) {
     const entry = inFlight.get(data.id);
     inFlight.delete(data.id);
     if (!entry) return;
@@ -412,9 +412,9 @@ const HIDDEN_FILL = '#101218';
       pipe.liveMask = maskSurface(data.mask);
       if (phase === 'visible' && !pipe.transition) pipe.room?.learn(pipe.analysed, data.mask);
     }
-    hand = gestures && ['hand', 'armed'].includes(data.hand ?? '') ? data.hand! : 'none';
+    hand = claps && data.clapPending ? 'clap' : (gestures || claps) && ['hand', 'armed'].includes(data.hand ?? '') ? data.hand! : 'none';
     if (hand !== 'none') handSeenAt = now;
-    if (data.snap && gestures) toggle();
+    if ((data.snap && gestures) || (data.clap && claps)) toggle();
     publish();
   }
 
@@ -463,8 +463,9 @@ const HIDDEN_FILL = '#101218';
       } catch { /* An invalid engine address is ignored. */ }
     } else if (data.type === 'settings') {
       if (typeof data.gestures === 'boolean') gestures = data.gestures;
+      if (typeof data.claps === 'boolean') claps = data.claps;
       if (typeof data.reducedMotion === 'boolean') reducedMotion = data.reducedMotion;
-      if (!gestures) hand = 'none';
+      if (!gestures && !claps) hand = 'none';
       publish();
     } else if (data.type === 'toggle') toggle();
   });
