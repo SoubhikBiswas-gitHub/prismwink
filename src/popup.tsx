@@ -1,4 +1,52 @@
+import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-function openPage(url:string) { if(typeof chrome!=='undefined'&&typeof chrome.tabs?.create==='function')void chrome.tabs.create({url});else window.open(url,'_blank','noopener'); }
-function Popup(){return <><header><img src="assets/icon.svg" width={36} height={36} alt=""/><span>Prismwink</span></header><main><h1>A little camera magic.</h1><p>One snap to disappear and mute. Another to return.</p><button id="open-studio" className="primary" type="button" onClick={()=>openPage(typeof chrome!=='undefined'&&typeof chrome.runtime?.getURL==='function'?chrome.runtime.getURL('studio.html'):new URL('studio.html',location.href).href)}>Open practice studio <span aria-hidden="true">↗</span></button><button id="open-meet" type="button" onClick={()=>openPage('https://meet.google.com/')}>Open Google Meet</button><div className="steps"><h2>Ready for a call?</h2><ol><li>Open or refresh your Meet tab.</li><li>Capture your empty room in the Prismwink dock.</li><li>Try a slow thumb–middle-finger pinch and release, or use the Vanish button.</li></ol></div><p className="note">The camera stays active while hidden so you can return. Your frames stay on this device.</p><p className="shortcut">Keyboard control <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>V</kbd></p></main><footer>Put a little magic on camera.</footer></>;}
-const app=document.getElementById('app');if(!app)throw new Error('The popup mount is missing.');createRoot(app).render(<Popup/>);
+
+const hasChrome = typeof chrome !== 'undefined' && Boolean(chrome.storage?.local);
+
+function Popup() {
+  const [gestures, setGestures] = useState(true);
+  const [shortcut, setShortcut] = useState('Alt+Shift+V');
+
+  useEffect(() => {
+    if (!hasChrome) return;
+    chrome.storage.local.get('prismwink').then((stored) => {
+      const saved = stored.prismwink as { gestures?: boolean } | undefined;
+      if (typeof saved?.gestures === 'boolean') setGestures(saved.gestures);
+    }).catch(() => {});
+    chrome.commands?.getAll().then((commands) => {
+      const key = commands.find((command) => command.name === 'toggle-vanish')?.shortcut;
+      setShortcut(key || 'Not set');
+    }).catch(() => {});
+  }, []);
+
+  const changeGestures = (value: boolean) => {
+    setGestures(value);
+    if (hasChrome) void chrome.storage.local.set({ prismwink: { gestures: value } });
+  };
+
+  return <>
+    <header><img src="assets/icon.svg" width={28} height={28} alt="" /><span>Prismwink</span></header>
+    <main>
+      <h1>Snap to vanish.<br />Snap to come back.</h1>
+      <ol>
+        <li>Join a Google Meet call with your camera on.</li>
+        <li>Raise a hand, press your thumb and middle finger together, then snap. You turn to dust and your microphone mutes.</li>
+        <li>Snap again to come back. Your microphone turns back on only if Prismwink muted it.</li>
+      </ol>
+      <p className="tip">For the cleanest vanish, step out of view for a moment once so Prismwink can see your whole room.</p>
+      <label className="switch">
+        <span><strong>Hand gesture</strong><small>Off: use the button or shortcut only</small></span>
+        <input type="checkbox" role="switch" checked={gestures} onChange={(event) => changeGestures(event.currentTarget.checked)} />
+      </label>
+      <div className="shortcut">
+        <span>Shortcut <kbd>{shortcut}</kbd></span>
+        <button type="button" onClick={() => hasChrome && void chrome.tabs.create({ url: 'chrome://extensions/shortcuts' })}>Change</button>
+      </div>
+    </main>
+    <footer>Video and audio are processed on this device only.</footer>
+  </>;
+}
+
+const app = document.getElementById('app');
+if (!app) throw new Error('The popup mount is missing.');
+createRoot(app).render(<Popup />);

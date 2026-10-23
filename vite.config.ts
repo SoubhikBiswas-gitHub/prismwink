@@ -6,6 +6,6 @@ import {resolve} from 'node:path';
 export default defineConfig({
   base:'./',
   plugins:[react(),crx({manifest,contentScripts:{standaloneFiles:['src/hook.ts','src/content.ts']}})],
-  build:{outDir:'dist',emptyOutDir:true,target:'chrome122',sourcemap:false,rollupOptions:{input:{studio:resolve(import.meta.dirname,'studio.html'),engine:resolve(import.meta.dirname,'engine.html')}}},
+  build:{outDir:'dist',emptyOutDir:true,target:'chrome122',sourcemap:false,rollupOptions:{input:{engine:resolve(import.meta.dirname,'engine.html')}}},
   server:{host:'127.0.0.1',port:5173,strictPort:true}
 });

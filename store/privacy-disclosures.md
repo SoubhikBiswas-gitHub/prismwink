@@ -1,29 +1,21 @@
 # Privacy form preparation
 
-Single purpose: Provide reversible local camera effects and their associated gesture/microphone controls for Google Meet, with a practice studio for the same effects.
+Single purpose: let a Google Meet user vanish from their camera with a dust effect and mute, then return, using a finger snap, a button or a shortcut.
 
 ## Permission justifications
 
-storage: Save user-selected effect settings and declarative scene presets locally, including studio favorites and recent effects. No camera images are stored in Chrome storage.
+storage: Saves one local preference, whether the hand gesture is on. No images are stored.
 
-https://meet.google.com/*: Insert the meeting control dock, intercept that site's camera capture early, and deliver processed video and immediate microphone gating during Google Meet calls. Access is limited to the supported meeting origin.
+https://meet.google.com/*: Runs the camera effect and the on-screen pill inside Google Meet, before Meet requests the camera, and switches Meet's microphone button. No other sites are accessed.
 
-The active meeting shortcut uses the existing Meet host permission. No activeTab, tabs, scripting, screen capture or broad all-sites permission is requested.
+Camera and microphone: Requested by Google Meet through Chrome's normal prompt. Prismwink processes camera frames locally for the effect, room learning and gesture recognition, and changes only the microphone's on/muted state. No recording or speech analysis.
 
-Camera/microphone device access: Requested by Chrome only when the user opens camera mode, the optional studio microphone test, or uses Meet's own device flow. Used for camera rendering, local gesture recognition and microphone-track gating. No speech analysis or recording.
-
-Remote code: No. The JavaScript, WebAssembly runtime and processing weights are packaged with the extension. Google Meet itself remains a separately operated website.
+Remote code: No. All JavaScript, WebAssembly and model files are packaged.
 
 ## User data inventory
 
-Camera images; temporary person masks and hand landmarks; room still; microphone enabled/muted state and the outgoing audio track used in a normal Meet call; local settings, favorites, recent effects and named scene presets. These are used only for the described camera effects and controls.
+Camera frames, temporary person outlines and hand landmarks, a learned room image held in memory, the microphone on/muted state, and one stored preference. Used only for the feature above, never sent anywhere by the extension. Map these to the dashboard's current categories in the live form; local-only handling is still handling.
 
-Local-only handling is still user-data handling. Do not certify that no user data is handled merely because the developer has no server. Map these actual data types to the dashboard's current category definitions before checking boxes; exact webcam/microphone category mapping must be verified in the live form.
+No sale, advertising or unrelated use. Public policy: https://github.com/SoubhikBiswas-gitHub/prismwink/blob/main/PRIVACY.md
 
-No sale, advertising use, unrelated use or credit/lending use. Affirm Limited Use compliance only while the implementation and public policy remain accurate.
-
-Public policy: https://github.com/SoubhikBiswas-gitHub/prismwink/blob/main/PRIVACY.md
-
-Account fields: use the existing verified publisher; verify the signed-in email, 2-Step Verification, contact verification and existing trader status. Do not change trader/legal status or publish private account details automatically.
-
-Official sources: https://developer.chrome.com/docs/webstore/cws-dashboard-privacy ; https://developer.chrome.com/docs/webstore/program-policies/user-data-faq ; https://developer.chrome.com/docs/webstore/program-policies/limited-use
+Account fields: use the existing verified publisher account and check its details in the dashboard. Do not change trader or legal status automatically.

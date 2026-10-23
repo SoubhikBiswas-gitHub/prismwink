@@ -1,41 +1,48 @@
-import { VisionClient } from './vision-client';
-
 const parentOrigin = 'https://meet.google.com';
-const vision = new VisionClient({ workerUrl: new URL('vision-worker.js', location.href).href });
-let initialized = false;
-let busy = false;
-let stopped = false;
-let initializationError = '';
-const send = (data: Record<string, unknown>, transfer: Transferable[] = []) => parent.postMessage({ source: 'prismwink-engine', ...data }, parentOrigin, transfer);
+let state: 'loading' | 'ready' | 'error' = 'loading';
+let failure = '';
 
-window.addEventListener('message', async (event) => {
+const send = (data: Record<string, unknown>, transfer: Transferable[] = []) => parent.postMessage({ source: 'prismwink-engine', ...data }, parentOrigin, transfer);
+const worker = new Worker(new URL('vision-worker.js', location.href).href);
+
+function fail(message: string) {
+  if (state === 'error') return;
+  state = 'error';
+  failure = message;
+  clearTimeout(timeout);
+  worker.terminate();
+  send({ type: 'error', message });
+}
+
+const timeout = setTimeout(() => fail('Local camera processing took too long to load.'), 45000);
+
+worker.onmessage = (event) => {
+  const message = event.data;
+  if (message?.type === 'ready') {
+    state = 'ready';
+    clearTimeout(timeout);
+    send({ type: 'ready' });
+  } else if (message?.type === 'error') fail(String(message.message));
+  else if (message?.type === 'result') send({ type: 'result', id: message.id, mask: message.mask, snap: message.snap, hand: message.hand, ms: message.ms }, [message.mask.data.buffer]);
+  else if (message?.type === 'result-error') send({ type: 'frame-error', id: message.id, message: message.message });
+};
+worker.onerror = () => fail('Local camera processing could not start.');
+worker.postMessage({ type: 'init' });
+
+window.addEventListener('message', (event) => {
   if (event.source !== parent || event.origin !== parentOrigin || event.data?.source !== 'prismwink-hook') return;
   const data = event.data;
   if (data.type === 'hello') {
-    if (initialized) send({ type: 'ready' });
-    else if (initializationError) send({ type: 'error', error: initializationError });
+    if (state === 'ready') send({ type: 'ready' });
+    else if (state === 'error') send({ type: 'error', message: failure });
     return;
   }
   if (data.type !== 'frame' || !(data.bitmap instanceof ImageBitmap)) return;
-  if (!initialized || busy || stopped) { data.bitmap.close(); return; }
-  busy = true;
-  try {
-    const result = await vision.process(data.bitmap, Number(data.timestamp) || performance.now());
-    if (!stopped && result) {
-      const transfer = result.mask?.data?.buffer ? [result.mask.data.buffer] : [];
-      send({ type: 'result', ...result }, transfer);
-    }
-  } catch (error) {
-    initialized = false;
-    initializationError = error instanceof Error ? error.message : 'Local camera processing failed.';
-    send({ type: 'error', error: initializationError });
-  } finally { busy = false; data.bitmap.close(); }
+  if (state !== 'ready') {
+    data.bitmap.close();
+    send({ type: 'frame-error', id: data.id, message: 'Camera processing is not ready.' });
+    return;
+  }
+  worker.postMessage({ type: 'frame', id: data.id, bitmap: data.bitmap, timestamp: data.timestamp, hands: Boolean(data.hands) }, [data.bitmap]);
 });
-
-vision.init().then(() => {
-  if (!stopped) { initialized = true; send({ type: 'ready' }); }
-}).catch((error: unknown) => {
-  initializationError = error instanceof Error ? error.message : 'Local camera processing could not start.';
-  if (!stopped) send({ type: 'error', error: initializationError });
-});
-window.addEventListener('pagehide', () => { stopped = true; vision.close(); }, { once: true });
+window.addEventListener('pagehide', () => worker.terminate(), { once: true });

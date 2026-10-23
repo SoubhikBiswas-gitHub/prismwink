@@ -6,50 +6,35 @@ Prismwink
 
 ## Short description
 
-Camera magic for Google Meet. Disappear into particles, mute, and return with a deliberate hand gesture.
+Snap your fingers in Google Meet to turn to dust and mute. Snap again to come back.
 
 ## Detailed description
 
-Put a little magic on camera.
+Snap your fingers on camera and turn to dust.
 
-Prismwink turns a deliberate thumb–middle-finger pinch and release into a playful camera effect. Disappear into dust, scatter into pixels, exit in confetti, or return through a soft smoke-style reveal.
+Prismwink adds one simple trick to Google Meet. Raise a hand, press your thumb and middle finger together, and snap. You dissolve into dust, your room stays behind, and your microphone mutes. Snap again and you reassemble, with your microphone back on.
 
-**A playful exit, with useful meeting controls**
+No setup. Prismwink learns your room from the background around you while you talk. Step out of view once for a perfect vanish.
 
-Vanish gates your outgoing microphone immediately. Return restores the previous microphone state only when Prismwink still owns it. If you were already muted, changed the microphone yourself, or its state is uncertain, the microphone stays muted.
+Your microphone, your call. Prismwink mutes with Meet's own button, so everyone sees you as muted. It turns the mic back on only if it muted it. A mic you muted yourself stays muted.
 
-**Practice before your next call**
+Works without the gesture too. Use the small on-screen button or Alt+Shift+V.
 
-Open the built-in studio and try the illustrated demo without camera access. When ready, choose My camera, capture your empty room while you step out of frame, and rehearse the gesture. Button and keyboard controls are available when a gesture is missed.
+Private by design. The camera, hand tracking and effect all run on your computer. Nothing is uploaded and no account is needed.
 
-**Make it yours**
-
-Choose dust, pixel, confetti or smoke. Adjust duration, particle detail, direction and color. Use reduced motion, save named scenes, keep favorites, and import or export preset files. Automatic detail reduction helps when effect rendering slows down.
-
-**Local processing, clear controls**
-
-Camera effects and hand processing use bundled local resources. No extra account is required. The extension does not send camera frames to a developer service. Google Meet transmits the processed outgoing stream to your call participants as usual.
-
-**Before you start**
-
-• Google Meet is the supported meeting integration.
-• Reload an existing Meet tab after installing, then use the Prismwink dock.
-• Capture an empty-room still before your first effect. Keep the camera still afterward.
-• The physical camera stays active while hidden to detect your return gesture.
-• Fast snaps and poor lighting can be missed; use a deliberate pinch/release or the manual toggle.
-• The room behind you is a still image. It does not continue moving while you are hidden.
-• Safe recovery returns the camera while keeping the microphone muted.
-
-The studio is a local practice preview. Its settings and microphone test are separate from the controls in a Meet call.
+Good to know:
+• Reload an open Meet tab after installing.
+• Your room is shown as a still image while you are hidden.
+• The camera stays on while you are hidden so it can see your snap to return.
 
 ## Listing fields
 
 Language: English
-Suggested category: Workflow & Planning / Tools (choose the matching current dashboard category).
+Category: Tools
 Homepage: https://github.com/SoubhikBiswas-gitHub/prismwink
 Support: https://github.com/SoubhikBiswas-gitHub/prismwink/issues
 Privacy policy: https://github.com/SoubhikBiswas-gitHub/prismwink/blob/main/PRIVACY.md
 Price: Free
 Mature content: No
 
-Do not include unreleased recording, portal, away-card or other roadmap features in the current listing. Store form fields use plain text; preserve paragraph spacing and replace Markdown emphasis with plain text where needed.
+Screenshots must come from the current extension in a real Meet call. The previous studio screenshots were removed because the studio no longer exists.

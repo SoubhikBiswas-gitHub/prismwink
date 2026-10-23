@@ -2,34 +2,30 @@
 
 Effective date: 23 October 2026
 
-Prismwink provides local camera effects, gesture controls and microphone-state controls for Google Meet, with a separate practice studio. It has no analytics, advertising tracker, account system or developer-operated frame-upload service.
+Prismwink adds a vanish effect and microphone control to Google Meet. It has no account, analytics, advertising or server of its own.
 
-## Data used for the features
+## What it processes
 
-Camera frames are processed locally to render the outgoing camera image. Local processing derives a person mask and temporary hand landmarks/gesture state to recognize a deliberate thumb–middle-finger pinch and release. This processing does not identify people or create an identity profile. The required processing runtime and weights are packaged with the extension.
+Camera frames are processed on your computer to draw your outgoing camera image. Each frame yields a person outline and hand landmarks. These are used to recognise the snap gesture and to learn what your room looks like behind you. Nothing identifies you, and no profile is built. The processing code and models are bundled with the extension.
 
-An empty-room still is captured only when you choose the capture action. Frames, masks, landmarks and the room still remain in session memory and are discarded when the camera session stops, the page closes or the relevant capture is cleared. The room still is not a live reconstruction.
+The learned room image, outlines and landmarks exist only in memory. They are discarded when the camera stops or the Meet tab closes, and are never saved to disk.
 
-Microphone controls use the enabled/muted state of the outgoing microphone tracks. The extension gates those tracks on disappearance and restores only a previous state it still owns. It does not analyze speech, transcribe audio, record calls or send audio to the developer. The optional studio microphone test is local and does not play or save audio.
+For the microphone, Prismwink reads and changes only whether the outgoing microphone is on or muted. It does not listen to, analyse, record or transmit audio.
 
-Studio effect settings, favorites, recently used effects and named scene presets may persist in Chrome's local extension storage. The Meet dock stores its preferences separately. These settings do not contain camera frames or room captures. Scene import/export handles declarative preset files chosen by the user; it cannot execute code or load remote effects.
+Chrome's local extension storage holds one setting: whether the hand gesture is on.
 
-## Sharing and transmission
+## What is shared
 
-During a meeting, Google Meet receives and transmits the outgoing processed camera stream and microphone audio as part of the normal call. Other participants can see the processed video without installing Prismwink. Google Meet and other participants handle that call data under their own policies and choices.
+During a call, Google Meet sends your processed camera image and your microphone audio to the other participants, as it does without Prismwink. Prismwink sends nothing to the developer or anyone else. It does not sell data or use it for advertising.
 
-Prismwink does not sell data, use it for advertising, send it to a developer service, or collect other participants' video, meeting chat or screen sharing. Exported scene files stay on the device unless you choose to share them.
+## Camera and controls
 
-## Camera access and deletion
-
-The physical camera remains active while you are hidden so a return gesture can still be detected. Hidden camera output does not mean the camera hardware is off. Controls show this behavior and provide stop and safe recovery actions.
-
-Use Clear room capture to discard the studio capture, Clear in the Meet dock to discard its room capture, Clear saved scenes to delete studio presets, and Reset effect settings to restore studio defaults. Stop camera and microphone ends the studio's hardware capture. Use Stop processing in the Meet dock to stop its camera processing, or turn off the camera and microphone in Meet. Chrome controls camera/microphone permissions; you can revoke them through Chrome. Removing the extension clears its stored preferences. Chrome may independently retain downloaded preset files until you delete them.
+The camera stays on while you are hidden, so Prismwink can see your snap to return. Turn your camera off in Meet to stop it. Camera and microphone permissions are controlled by Chrome. Removing the extension removes its stored setting.
 
 ## Limited Use
 
-Prismwink uses the data described here only for its camera effects and controls, in accordance with the [Chrome Web Store User Data Policy](https://developer.chrome.com/docs/webstore/program-policies/user-data-faq), including its [Limited Use requirements](https://developer.chrome.com/docs/webstore/program-policies/limited-use).
+Prismwink uses this data only for the features above, in line with the [Chrome Web Store User Data Policy](https://developer.chrome.com/docs/webstore/program-policies/user-data-faq) and its [Limited Use requirements](https://developer.chrome.com/docs/webstore/program-policies/limited-use).
 
-## Contact and changes
+## Contact
 
-Questions and privacy requests can be raised through the [project support issues](https://github.com/SoubhikBiswas-gitHub/prismwink/issues). Updates to this policy will be published here with a revised effective date.
+Raise questions through the [project issues](https://github.com/SoubhikBiswas-gitHub/prismwink/issues). Changes to this policy will be published here with a new effective date.

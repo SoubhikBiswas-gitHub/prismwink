@@ -4,7 +4,7 @@ export default defineManifest({
   manifest_version:3,
   name:'Prismwink',
   version:pkg.version,
-  description:'Camera magic for Google Meet. Disappear into particles, mute, and return with a deliberate hand gesture.',
+  description:'Snap your fingers in Google Meet to turn to dust and mute. Snap again to come back.',
   minimum_chrome_version:'122',
   permissions:['storage'],
   host_permissions:['https://meet.google.com/*'],
@@ -16,6 +16,6 @@ export default defineManifest({
     {matches:['https://meet.google.com/*'],js:['src/hook.ts'],run_at:'document_start',world:'MAIN'},
     {matches:['https://meet.google.com/*'],js:['src/content.ts'],run_at:'document_start'}
   ],
-  web_accessible_resources:[{resources:['engine.html','vision-worker.js','assets/wasm/*','assets/*.tflite','assets/*.task','assets/icon.svg','assets/fonts/*'],matches:['https://meet.google.com/*']}],
+  web_accessible_resources:[{resources:['engine.html','vision-worker.js','assets/wasm/*','assets/*.tflite','assets/*.task'],matches:['https://meet.google.com/*']}],
   content_security_policy:{extension_pages:"script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; object-src 'self';"}
 });

@@ -1,306 +1,154 @@
-import test, { type TestContext } from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SnapGestureDetector } from '../src/gesture';
-import { EffectRenderer, validMask } from '../src/effects';
-import { VisionClient } from '../src/vision-client';
-import type { HandDetection } from '../src/gesture';
-import type { PersonMask, RenderState } from '../src/effects';
+import { SnapDetector, measure, type HandFrame, type Point } from '../src/gesture';
+import { backgroundOf, fillHoles, validMask } from '../src/room';
+import { dissolveField } from '../src/effects';
 
-function hand(gap: number, label = 'Left', x = 0.45): HandDetection {
-  const points = Array.from({ length: 21 }, () => ({ x, y: 0.55, z: 0 }));
-  points[0] = { x, y: 0.7, z: 0 };
-  points[9] = { x, y: 0.5, z: 0 };
-  points[4] = { x, y: 0.3, z: 0 };
-  points[12] = { x: x + gap * 0.2, y: 0.3, z: 0 };
-  return { landmarks: [points], handedness: [[{ categoryName: label }]] };
+type Pose = { thumb: [number, number, number]; middle: [number, number, number] };
+const POSES = {
+  open: { thumb: [0.07, -0.08, 0], middle: [0, -0.18, 0] },
+  pinch: { thumb: [0.035, -0.13, -0.02], middle: [0.03, -0.14, -0.02] },
+  snapped: { thumb: [0.05, -0.11, -0.03], middle: [0.02, -0.05, -0.02] },
+  curledNearThumb: { thumb: [0.04, -0.095, -0.02], middle: [0.02, -0.05, -0.02] },
+  halfOpen: { thumb: [0.045, -0.12, -0.02], middle: [0.02, -0.15, -0.02] },
+  fist: { thumb: [0.03, -0.065, -0.03], middle: [0.02, -0.06, -0.03] }
+} satisfies Record<string, Pose>;
+
+function hand(pose: Pose, shift = 0): HandFrame {
+  const world: Point[] = Array.from({ length: 21 }, () => ({ x: 0.01, y: -0.05, z: 0 }));
+  world[0] = { x: 0, y: 0, z: 0 };
+  world[9] = { x: 0, y: -0.09, z: 0 };
+  world[4] = { x: pose.thumb[0], y: pose.thumb[1], z: pose.thumb[2] };
+  world[12] = { x: pose.middle[0], y: pose.middle[1], z: pose.middle[2] };
+  const image = world.map((point) => ({ x: 0.5 + shift + point.x * 3, y: 0.7 + point.y * 3, z: 0 }));
+  return { landmarks: [image], worldLandmarks: [world] };
 }
 
-function snap(detector: SnapGestureDetector, start = 0) {
-  detector.update(hand(1.2), start);
-  detector.update(hand(0.1), start + 20);
-  detector.update(hand(0.1), start + 100);
-  return detector.update(hand(1.2), start + 150);
+const none: HandFrame = { landmarks: [] };
+
+function play(detector: SnapDetector, steps: [HandFrame, number][]) {
+  return steps.map(([frame, at]) => detector.update(frame, at));
 }
 
-test('deliberate thumb/middle contact followed by quick release emits one cue', () => {
-  const detector = new SnapGestureDetector();
-  assert.deepEqual(snap(detector), { gesture: true, handStatus: 'ready' });
-  assert.equal(detector.update(hand(1.2), 200).gesture, false);
+test('pose measurement uses metric world landmarks and rejects tiny or broken hands', () => {
+  const pinch = measure(hand(POSES.pinch).landmarks[0], hand(POSES.pinch).worldLandmarks![0])!;
+  assert.ok(pinch.pinch < 0.2 && pinch.reach > 1.5);
+  const tiny = hand(POSES.open).landmarks[0].map((point) => ({ x: point.x / 20, y: point.y / 20 }));
+  assert.equal(measure(tiny), null);
+  assert.equal(measure(hand(POSES.open).landmarks[0].slice(0, 10)), null);
 });
 
-test('a single noisy pinch frame, slow opening and prolonged hold do not trigger', () => {
-  const detector = new SnapGestureDetector();
-  detector.update(hand(0.1), 0);
-  assert.equal(detector.update(hand(1.2), 80).gesture, false);
-  detector.update(hand(0.1), 300);
-  detector.update(hand(0.1), 400);
-  detector.update(hand(0.6), 500);
-  assert.equal(detector.update(hand(1.2), 900).gesture, false);
-  detector.update(hand(0.1), 1200);
-  detector.update(hand(0.1), 1300);
-  detector.update(hand(0.1), 2300);
-  assert.equal(detector.update(hand(1.2), 2400).gesture, false);
+test('a real snap fires once: pinch, then the middle finger drops to the palm', () => {
+  const detector = new SnapDetector();
+  const results = play(detector, [[hand(POSES.open), 0], [hand(POSES.pinch), 50], [hand(POSES.pinch), 100], [hand(POSES.pinch), 150], [hand(POSES.snapped), 200], [hand(POSES.open), 250]]);
+  assert.deepEqual(results.map((result) => result.snap), [false, false, false, false, true, false]);
+  assert.equal(results[2].hand, 'armed');
 });
 
-test('hand loss, hand switching and a large tracking jump cancel the armed cue', () => {
-  for (const change of [{ landmarks: [] }, hand(1.2, 'Right'), hand(1.2, 'Left', 0.9)]) {
-    const detector = new SnapGestureDetector();
-    detector.update(hand(0.1), 0);
-    detector.update(hand(0.1), 100);
-    assert.equal(detector.update(change, 150).gesture, false);
-    assert.equal(detector.update(hand(1.2), 200).gesture, false);
+test('a curl-only release still counts as a snap', () => {
+  const detector = new SnapDetector();
+  const results = play(detector, [[hand(POSES.pinch), 0], [hand(POSES.pinch), 40], [hand(POSES.curledNearThumb), 80]]);
+  assert.equal(results.at(-1)!.snap, true);
+});
+
+test('motion blur during the snap: a short detection gap is tolerated', () => {
+  const detector = new SnapDetector();
+  const results = play(detector, [[hand(POSES.pinch), 0], [hand(POSES.pinch), 40], [none, 80], [none, 120], [hand(POSES.snapped), 300]]);
+  assert.equal(results.at(-1)!.snap, true);
+});
+
+test('a hand that disappears for good, or returns too late, does not fire', () => {
+  const detector = new SnapDetector();
+  const results = play(detector, [[hand(POSES.pinch), 0], [hand(POSES.pinch), 40], [none, 100], [hand(POSES.open), 700]]);
+  assert.ok(results.every((result) => !result.snap));
+});
+
+test('a fist opening, a single noisy pinch frame and a slow opening never fire', () => {
+  const fist = play(new SnapDetector(), [[hand(POSES.fist), 0], [hand(POSES.fist), 40], [hand(POSES.fist), 80], [hand(POSES.open), 120]]);
+  assert.ok(fist.every((result) => !result.snap));
+  const noisy = play(new SnapDetector(), [[hand(POSES.pinch), 0], [hand(POSES.open), 40]]);
+  assert.ok(noisy.every((result) => !result.snap));
+  const slow = play(new SnapDetector(), [[hand(POSES.pinch), 0], [hand(POSES.pinch), 40], [hand(POSES.halfOpen), 200], [hand(POSES.halfOpen), 500], [hand(POSES.halfOpen), 700], [hand(POSES.open), 900]]);
+  assert.ok(slow.every((result) => !result.snap));
+});
+
+test('holding the pinch too long disarms until the hand opens again', () => {
+  const detector = new SnapDetector();
+  const steps: [HandFrame, number][] = [];
+  for (let at = 0; at <= 3200; at += 100) steps.push([hand(POSES.pinch), at]);
+  steps.push([hand(POSES.snapped), 3250]);
+  assert.ok(play(detector, steps).every((result) => !result.snap));
+  const again = play(detector, [[hand(POSES.open), 3400], [hand(POSES.pinch), 3450], [hand(POSES.pinch), 3500], [hand(POSES.snapped), 3550]]);
+  assert.equal(again.at(-1)!.snap, true);
+});
+
+test('cooldown blocks a double toggle, and a later snap works', () => {
+  const detector = new SnapDetector();
+  const snap = (at: number) => play(detector, [[hand(POSES.pinch), at], [hand(POSES.pinch), at + 40], [hand(POSES.snapped), at + 80]]).at(-1)!.snap;
+  assert.equal(snap(0), true);
+  assert.equal(snap(300), false);
+  assert.equal(snap(2000), true);
+});
+
+test('a release far from the armed hand belongs to another hand and does not fire', () => {
+  const detector = new SnapDetector();
+  const results = play(detector, [[hand(POSES.pinch), 0], [hand(POSES.pinch), 40], [hand(POSES.open, 0.8), 80]]);
+  assert.ok(results.every((result) => !result.snap));
+});
+
+test('stale or repeated timestamps are ignored', () => {
+  const detector = new SnapDetector();
+  play(detector, [[hand(POSES.pinch), 100], [hand(POSES.pinch), 140]]);
+  assert.deepEqual(detector.update(hand(POSES.snapped), 120), { snap: false, hand: 'none' });
+  assert.equal(detector.update(hand(POSES.snapped), 160).snap, true);
+});
+
+test('the background excludes the person grown by the safety radius', () => {
+  const width = 20, height = 10;
+  const data = new Uint8Array(width * height);
+  for (let y = 3; y < 7; y++) for (let x = 8; x < 12; x++) data[y * width + x] = 255;
+  const background = backgroundOf({ width, height, data }, 2);
+  assert.equal(background[5 * width + 10], 0);
+  assert.equal(background[5 * width + 6], 0);
+  assert.equal(background[5 * width + 13], 0);
+  assert.equal(background[5 * width + 5], 1);
+  assert.equal(background[0], 1);
+  assert.equal(background[1 * width + 10], 0);
+});
+
+test('hole filling keeps known pixels and fills unseen ones from their surroundings', () => {
+  const width = 16, height = 8;
+  const rgba = new Uint8ClampedArray(width * height * 4);
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    const i = (y * width + x) * 4;
+    if (x >= 6 && x < 10) continue;
+    rgba.set(x < 6 ? [200, 40, 40, 255] : [40, 40, 200, 255], i);
   }
+  const filled = fillHoles(rgba, width, height);
+  assert.deepEqual([...filled.slice(0, 4)], [200, 40, 40, 255]);
+  assert.deepEqual([...filled.slice((width - 1) * 4, width * 4)], [40, 40, 200, 255]);
+  const middle = (4 * width + 7) * 4;
+  assert.equal(filled[middle + 3], 255);
+  assert.ok(filled[middle] > 60 && filled[middle + 2] > 60, 'a hole between red and blue blends both');
+  assert.ok(filled[middle + 1] < 80);
 });
 
-test('a cooldown prevents repeated toggles and a later deliberate cue works', () => {
-  const detector = new SnapGestureDetector();
-  assert.equal(snap(detector).gesture, true);
-  assert.equal(snap(detector, 300).gesture, false);
-  assert.equal(snap(detector, 1800).gesture, true);
+test('masks are validated before use', () => {
+  assert.equal(validMask({ width: 2, height: 2, data: new Uint8Array(4) }), true);
+  assert.equal(validMask({ width: 2, height: 2, data: new Uint8Array(3) }), false);
+  assert.equal(validMask({ width: 0, height: 0, data: new Uint8Array(0) }), false);
+  assert.equal(validMask(null), false);
 });
 
-test('out-of-order timestamps and invalid tiny hands cannot release a stored cue', () => {
-  const detector = new SnapGestureDetector();
-  detector.update(hand(0.1), 100);
-  detector.update(hand(0.1), 200);
-  assert.equal(detector.update(hand(1.2), 190).gesture, false);
-  assert.equal(detector.update(hand(1.2), 250).gesture, false);
-  const invalid = hand(0.1);
-  invalid.landmarks[0][9] = invalid.landmarks[0][0];
-  assert.deepEqual(detector.update(invalid, 300), { gesture: false, handStatus: 'no-hand' });
-});
-
-interface PixelBuffer { width: number; height: number; data: Uint8ClampedArray }
-class FakeCanvas {
-  width: number;
-  height: number;
-  context: FakeContext;
-  constructor(width = 64, height = 36) {
-    this.width = width;
-    this.height = height;
-    this.context = new FakeContext(this);
+test('dissolve timing spans the person and leaves time for the last dust to drift', () => {
+  const width = 48, height = 27;
+  const person = new Float32Array(width * height);
+  for (let y = 5; y < 27; y++) for (let x = 14; x < 34; x++) person[y * width + x] = 1;
+  const field = dissolveField(width, height, person);
+  let low = Infinity, high = -Infinity;
+  for (let i = 0; i < field.length; i++) {
+    assert.ok(field[i] >= 0.04 - 1e-6 && field[i] <= 0.72 + 1e-6);
+    if (person[i]) { low = Math.min(low, field[i]); high = Math.max(high, field[i]); }
   }
-  getContext() { return this.context; }
-}
-class FakeContext {
-  canvas: FakeCanvas;
-  draws: unknown[] = [];
-  pixels?: PixelBuffer;
-  throwOnSource?: unknown;
-  constructor(canvas: FakeCanvas) { this.canvas = canvas; this.draws = []; }
-  createImageData(width: number, height: number) { return { width, height, data: new Uint8ClampedArray(width * height * 4) }; }
-  putImageData(image: PixelBuffer) { this.pixels = image; }
-  getImageData(_x: number, _y: number, width: number, height: number) {
-    const image = this.createImageData(width, height);
-    for (let i = 0; i < image.data.length; i += 4) image.data.set([40, 140, 180, 255], i);
-    if (this.pixels?.data.length === image.data.length) image.data.set(this.pixels.data);
-    return image;
-  }
-  drawImage(source: unknown) { if (source === this.throwOnSource) throw new Error('frame unavailable'); this.draws.push(source); }
-  setTransform() {}
-  clearRect() {}
-  fills = 0;
-  fillRect() { this.fills++; }
-  beginPath() {}
-  arc() {}
-  fill() {}
-}
-const mask: PersonMask = { width: 4, height: 4, data: new Uint8Array(16).fill(255) };
-const raw = { width: 64, height: 36, id: 'raw camera' } as unknown as HTMLCanvasElement;
-
-function renderer(t: TestContext, onState?: (state: RenderState) => void) {
-  const previous = globalThis.OffscreenCanvas;
-  globalThis.OffscreenCanvas = FakeCanvas as unknown as typeof OffscreenCanvas;
-  t.after(() => { globalThis.OffscreenCanvas = previous; });
-  const canvas = new FakeCanvas();
-  return { canvas, effect: new EffectRenderer(canvas as unknown as HTMLCanvasElement, { onState }) };
-}
-
-test('no plate, no foreground, malformed masks and overlapping transitions are rejected', t => {
-  const { effect } = renderer(t);
-  assert.equal(effect.toggle(raw, mask, 0), false);
-  effect.capturePlate(raw);
-  assert.equal(effect.toggle(raw, { ...mask, data: new Uint8Array(16) }, 0), false);
-  assert.equal(effect.toggle(raw, { ...mask, width: 100000 }, 0), false);
-  assert.equal(effect.toggle(raw, mask, 0), true);
-  assert.equal(effect.toggle(raw, mask, 1), false);
-  assert.equal(validMask({ width: 0, height: 0, data: new Uint8Array() }), false);
-});
-
-test('the state callback runs before the first transformed frame and hidden output never draws the raw source', t => {
-  const notices: { state: RenderState; frames: number }[] = [];
-  const { effect, canvas } = renderer(t, state => notices.push({ state, frames: canvas.context.draws.length }));
-  effect.capturePlate(raw);
-  effect.render(raw, mask, 0);
-  const before = canvas.context.draws.length;
-  assert.equal(effect.toggle(raw, mask, 10), true);
-  assert.deepEqual(notices, [{ state: 'vanishing', frames: before }]);
-  effect.render(raw, mask, 2510);
-  assert.equal(effect.state, 'hidden');
-  canvas.context.draws = [];
-  effect.render(raw, null, 3000);
-  effect.render(raw, mask, 4000);
-  assert.equal(canvas.context.draws.includes(raw), false);
-  assert.ok(canvas.context.draws.length > 0);
-});
-
-test('a cleared plate or changed device while hidden enters recovery without revealing live pixels', t => {
-  const { effect, canvas } = renderer(t);
-  effect.capturePlate(raw);
-  effect.toggle(raw, mask, 0);
-  effect.render(raw, mask, 3000);
-  canvas.context.draws = [];
-  const replacement = { width: 128, height: 72, id: 'new camera' } as unknown as HTMLCanvasElement;
-  effect.render(replacement, mask, 4000);
-  assert.equal(effect.state, 'recovery');
-  assert.equal(effect.hasPlate, false);
-  assert.equal(canvas.context.draws.includes(raw), false);
-  assert.equal(canvas.context.draws.includes(replacement), false);
-  assert.equal(effect.toggle(replacement, mask, 4500), false);
-  effect.recover();
-  effect.render(replacement, mask, 4600);
-  assert.equal(canvas.context.draws.at(-1), replacement);
-  assert.equal(effect.hasPlate, false);
-});
-
-test('a rendering failure announces recovery synchronously and remains safe across later frames', t => {
-  const notices: RenderState[] = [];
-  const { effect, canvas } = renderer(t, state => notices.push(state));
-  effect.capturePlate(raw);
-  canvas.context.throwOnSource = raw;
-  assert.throws(() => effect.render(raw, mask, 100), /frame unavailable/);
-  assert.equal(effect.state, 'recovery');
-  assert.deepEqual(notices, ['recovery']);
-  canvas.context.throwOnSource = undefined;
-  canvas.context.draws = [];
-  effect.render(raw, mask, 200);
-  assert.equal(canvas.context.draws.includes(raw), false);
-});
-
-test('return reconstructs and resumes live video only after its transition completes', t => {
-  const { effect, canvas } = renderer(t);
-  effect.capturePlate(raw);
-  effect.toggle(raw, mask, 0);
-  effect.render(raw, mask, 3000);
-  const returned = { ...raw, id: 'current pose' };
-  assert.equal(effect.toggle(returned, mask, 4000), true);
-  canvas.context.draws = [];
-  effect.render(returned, mask, 4100);
-  assert.equal(canvas.context.draws.includes(returned), false);
-  effect.render(returned, mask, 7000);
-  assert.equal(effect.state, 'visible');
-  assert.equal(canvas.context.draws.at(-1), returned);
-});
-
-test('all visual styles render a transition; reduced motion finishes quickly and destroy preserves the output', t => {
-  const { effect, canvas } = renderer(t);
-  for (const style of ['dust', 'pixel', 'confetti', 'smoke'] as const) {
-    effect.recover();
-    effect.setOptions({ effect: style, palette: 'prism', duration: 2000, density: 500 });
-    effect.capturePlate(raw);
-    assert.equal(effect.toggle(raw, mask, 0), true);
-    effect.render(raw, mask, 1000);
-    assert.equal(effect.state, 'vanishing');
-  }
-  effect.recover();
-  effect.setOptions({ reducedMotion: true });
-  effect.capturePlate(raw);
-  effect.toggle(raw, mask, 0);
-  effect.render(raw, mask, 200);
-  assert.equal(effect.state, 'hidden');
-  const draws = canvas.context.draws.length;
-  effect.destroy();
-  effect.render(raw, mask, 1000);
-  assert.equal(canvas.context.draws.length, draws);
-});
-
-interface MockBitmap { closed: boolean; close: () => void }
-function mockWorker(t: TestContext, { initError = false, postError = false }: { initError?: boolean; postError?: boolean } = {}) {
-  const previousWorker = globalThis.Worker;
-  const previousBitmap = globalThis.createImageBitmap;
-  const instances: WorkerMock[] = [];
-  const bitmaps: MockBitmap[] = [];
-  class WorkerMock {
-    onmessage?: (event: { data: unknown }) => void;
-    last?: { id: number; bitmap: MockBitmap };
-    terminated = false;
-    constructor() { instances.push(this); }
-    postMessage(message: { type: string; id: number; bitmap: MockBitmap }) {
-      if (message.type === 'init') queueMicrotask(() => this.onmessage?.({ data: initError ? { type: 'error', message: 'missing local assets' } : { type: 'ready' } }));
-      else {
-        if (postError) throw new Error('transfer failed');
-        this.last = message;
-      }
-    }
-    terminate() { this.terminated = true; }
-    result() { this.last!.bitmap.close(); this.onmessage?.({ data: { type: 'result', id: this.last!.id, mask, gesture: false, handStatus: 'ready' } }); }
-  }
-  globalThis.Worker = WorkerMock as unknown as typeof Worker;
-  globalThis.createImageBitmap = (async () => {
-    const bitmap = { closed: false, close() { this.closed = true; } };
-    bitmaps.push(bitmap);
-    return bitmap;
-  }) as unknown as typeof createImageBitmap;
-  t.after(() => { globalThis.Worker = previousWorker; globalThis.createImageBitmap = previousBitmap; });
-  return { instances, bitmaps };
-}
-
-test('vision initialization rejects instead of reporting readiness when local assets fail', async t => {
-  const { instances } = mockWorker(t, { initError: true });
-  const client = new VisionClient({ workerUrl: 'local-worker.js' });
-  await assert.rejects(client.init(), /missing local assets/);
-  assert.equal(client.ready, false);
-  assert.equal(instances[0].terminated, true);
-});
-
-test('vision allows one in-flight frame, returns its mask, and close rejects pending work', async t => {
-  const { instances } = mockWorker(t);
-  const client = new VisionClient({ workerUrl: 'local-worker.js' });
-  await client.init();
-  const first = client.process(raw, 100);
-  assert.equal(await client.process(raw, 110), null);
-  await new Promise(resolve => setImmediate(resolve));
-  instances[0].result();
-  assert.deepEqual(await first, { mask, gesture: false, handStatus: 'ready' });
-  const second = client.process(raw, 200);
-  await new Promise(resolve => setImmediate(resolve));
-  client.close();
-  await assert.rejects(second, /stopped/);
-  assert.equal(instances[0].terminated, true);
-  await assert.rejects(client.process(raw, 300), /stopped/);
-});
-
-test('vision closes an untransferred frame when posting to the worker fails', async t => {
-  const { bitmaps } = mockWorker(t, { postError: true });
-  const client = new VisionClient({ workerUrl: 'local-worker.js' });
-  await assert.rejects(client.process(raw, 100), /transfer failed/);
-  assert.equal(bitmaps[0].closed, true);
-  assert.equal(client.pending.size, 0);
-  client.close();
-});
-
-
-test('slow effect frames reduce particle drawing without changing presets or exposing live pixels', t => {
-  const { effect, canvas } = renderer(t);
-  let clock = 0;
-  t.mock.method(performance, 'now', () => { clock += 30; return clock; });
-  effect.setOptions({density: 4500});
-  effect.capturePlate(raw);
-  effect.toggle(raw, mask, 0);
-  let firstFills = 0;
-  for (let index = 0; index < 6; index++) {
-    const before = canvas.context.fills;
-    effect.render(raw, mask, 1500);
-    if (index === 0) firstFills = canvas.context.fills - before;
-  }
-  assert.equal(effect.quality, 'light');
-  const before = canvas.context.fills;
-  effect.render(raw, mask, 1500);
-  assert.ok(canvas.context.fills - before < firstFills * 0.5);
-  assert.equal(effect.options.density, 4500);
-  effect.render(raw, mask, 3000);
-  canvas.context.draws = [];
-  effect.render(raw, mask, 4000);
-  assert.equal(effect.state, 'hidden');
-  assert.equal(canvas.context.draws.includes(raw), false);
+  assert.ok(Math.abs(low - 0.04) < 1e-6 && Math.abs(high - 0.72) < 1e-6);
 });

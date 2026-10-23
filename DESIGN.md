@@ -1,4 +1,4 @@
-# Camera Magic Studio: Visual Direction Proposal
+# Prismwink visual system
 
 Date: 23 October 2026
 Status: APPROVED FOR IMPLEMENTATION, 23 October 2026.
@@ -8,13 +8,13 @@ Tagline: Put a little magic on camera.
 
 ## The impression
 
-A futuristic camera studio with the feeling of casting a spell. A calm dark work surface surrounds a vivid camera image. Light, dust, portals and dramatic transitions happen in the preview; microphone controls remain steady and readable.
+The feeling of a small spell: one snap and you crumble to dust. The effect is the spectacle; the controls around it stay calm, small and readable.
 
 ## Product name
 
 Prismwink combines prism (light, color and transformation) with wink (a small playful gesture). Write it consistently as one word. Search/listing descriptor: Prismwink: Camera Magic for Google Meet.
 
-This is a Chrome extension. A purchased domain, separate hosted application, and domain setup are not part of the plan. The built-in studio ships with the extension; distribution is through the Chrome Web Store and release archives. Public supporting documentation can live with the repository.
+This is a Chrome extension distributed through the Chrome Web Store and release archives. There is no website, hosted app or dashboard.
 
 ## Palette and use
 
@@ -48,11 +48,9 @@ Verified sources:
 
 ## Layout
 
-Studio: one dominant 16:9 preview using about 70 percent of the working width, a 280–320px inspector at right, and a horizontal effect filmstrip beneath the preview. Keep the active visibility action and actual microphone status near the preview. Studio, Effects and My scenes form the small primary navigation.
+Meeting: one opaque pill in the lower-left corner, above Meet's control bar. It holds a status dot, a one-line status with an optional detail line, and a single Vanish/Return button (at least 36px tall inside a 48px pill). The dot's colour and the text change together: mint for ready or hand seen, violet for an armed pinch or hidden, stardust while busy, red for a failure. The font follows Meet's own (Google Sans, then Roboto).
 
-Meeting: an opaque compact dock, approximately 300px wide, with an explicit Vanish/Return action, visible mic state, effect picker and gesture arm/disarm. The dock can collapse without hiding recovery access.
-
-Settings: an inline inspector rather than a succession of modals. Dense controls use 8px corners; the preview uses 16px corners. Use an 8px spacing grid, 24px between groups and 32px between major regions. Interactive targets should be at least 44px when space permits.
+Popup: a 340px panel with the promise, three steps, a single Hand gesture switch and the shortcut. No other settings.
 
 ## Icon and imagery
 
@@ -64,24 +62,16 @@ Use original, realistic camera scenes for promotional art. Effect previews show 
 
 ## Motion and sound
 
-Controls settle in 120–180ms. Effect thumbnails animate on deliberate hover or selection. Dust uses directional flow; return reconstructs the silhouette. Portals get a coherent arc and occlusion, not random glow scattered around the page. Calm controls make the spectacle easier to read.
+Controls settle in 120–180ms with ease-out curves. The dust sweeps from the top right with a grainy, ash-charred edge, and particles drift away in the person's own colours. Return plays the same motion in reverse on the live image.
 
-Default effect duration is 2.5 seconds, adjustable in the studio. Reduced motion replaces complex dispersal with a brief fade while preserving identical state feedback. Readiness never depends on a blinking light or motion alone. Local preview/clip sounds are optional; no live meeting audio injection by default.
+Vanish takes 2.4 seconds and return 1.8 seconds. Reduced motion replaces the dust with a short fade and keeps identical state feedback. Readiness never depends on motion or colour alone. No sound is added to the meeting.
 
 ## Words and states
 
-Use plain, useful controls: Vanish & mute, Return to camera, Capture empty room, Practice a gesture, Save scene, Export clip. Magic is the feeling, not a reason to call basic controls incomprehensible spell names.
+Use plain words: Vanish, Return, Snap to vanish, Hand seen, Now snap, You’re hidden. Magic is the feeling, not a reason for spell names on controls.
 
-Design visible, hidden, transitioning, setup, permission denied, loading and recovery states. Examples: Visible · Mic on; Hidden · Mic muted; Camera processing unavailable. If a restoration state is uncertain, keep the microphone muted and provide an explicit user action.
+Design camera off, getting ready, ready, hand seen, armed, vanishing, hidden, returning and failure states. If the microphone state is uncertain, keep it muted and say so.
 
-## Assets to produce after the direction is accepted
+## Assets
 
-Editable brand mark and wordmark; 16/32/48/128 icons; real effect thumbnails; camera setup and gesture illustrations; original room/subject sample scenes; light/dark marks; clip end card; store screenshots and listing art; and an original optional preview/clip sound set. The first approved visual board becomes the reference for these assets.
-
-## Product scope stays broad
-
-The existing feature plan covers 60 proposed capabilities across signature effects, deliberate gestures, practical meeting tools, a practice/clip studio, playful sequences, personalization and quality. Features remain labeled for launch, expansion or experiment. No visual mockup is evidence that these features have been implemented.
-
-## Visual concept
-
-See [the theme concept](docs/designs/prismwink-theme-concept.png). This is a visual mockup, not functioning extension software or a production icon.
+Editable brand mark and 16/32/48/128 icons are in public/assets. Store screenshots must show the current extension in a real call.

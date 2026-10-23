@@ -1,137 +1,297 @@
 import assert from 'node:assert/strict';
-import {mkdtemp,mkdir,writeFile,readFile,rm} from 'node:fs/promises';
-import {tmpdir} from 'node:os';
+import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import sharp from 'sharp';
-import {chromium,type BrowserContext} from '@playwright/test';
-import {runMeetChecks,type MeetCheck} from './meet-browser';
+import { chromium, type BrowserContext, type Page, type Worker } from '@playwright/test';
 
-const root=path.resolve(import.meta.dirname,'..');
-const evidence=path.join(root,'test-results');
-await mkdir(evidence,{recursive:true});
-const temporary=await mkdtemp(path.join(tmpdir(),'prismwink-tests-'));
-const fixture=path.join(temporary,'camera.y4m');
-const results:MeetCheck[]=[];
-let context:BrowserContext|undefined;
-const pass=(check:string,detail:string)=>{results.push({check,passed:true,detail});console.log(`PASS ${check}`);};
+interface Check { check: string; passed: boolean; detail: string }
+interface Status { camera: boolean; phase: string; vision: string; error: string; hand: string; room: number; gestures: boolean; notice: string; processMs: number; visionMs: number; results: number }
+interface Harness {
+  hookFirst: boolean;
+  status: Status | null;
+  stream: MediaStream | null;
+  start: () => Promise<void>;
+  loopback: () => Promise<void>;
+  peak: (ms: number) => Promise<number>;
+  person: () => number;
+  decoded: () => Promise<number>;
+  snapshot: () => string;
+  extraPerson: () => Promise<number>;
+  micMuted: () => string | null;
+  audioEnabled: () => boolean[];
+  stopAll: () => void;
+}
+type HarnessWindow = Window & { harness: Harness };
 
-async function makeCameraFixture(){
-  const w=640,h=360;
-  const rgb=await sharp(path.join(root,'tests/fixtures/camera-portrait.png')).resize(w,h,{fit:'cover'}).removeAlpha().raw().toBuffer();
-  const pixels=w*h,base=Buffer.alloc(pixels*3/2);
-  const clamp=(x:number)=>Math.min(255,Math.max(0,Math.round(x)));
-  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
-    const i=y*w+x,j=i*3,r=rgb[j]!,g=rgb[j+1]!,b=rgb[j+2]!;
-    base[i]=clamp(16+.257*r+.504*g+.098*b);
-    if(x%2===0&&y%2===0){
-      let ar=0,ag=0,ab=0;
-      for(let dy=0;dy<2;dy++)for(let dx=0;dx<2;dx++){const k=((y+dy)*w+x+dx)*3;ar+=rgb[k]!/4;ag+=rgb[k+1]!/4;ab+=rgb[k+2]!/4;}
-      const c=(y/2)*(w/2)+x/2;
-      base[pixels+c]=clamp(128-.148*ar-.291*ag+.439*ab);
-      base[pixels+pixels/4+c]=clamp(128+.439*ar-.368*ag-.071*ab);
+const root = path.resolve(import.meta.dirname, '..');
+const evidence = path.join(root, 'test-results');
+const WIDTH = 1280, HEIGHT = 720;
+
+const harnessHtml = `<!doctype html><html><head><meta charset="utf-8"><title>Meet test harness</title>
+<style>body{font:16px sans-serif;background:#202124;color:#fff;padding:24px}video{width:320px;height:180px;background:#000}button{min-height:44px;padding:10px;margin:4px}</style></head><body>
+<h1>Local Meet test harness</h1>
+<button id="start">Start camera</button>
+<button id="mic" aria-label="Turn off microphone (⌘ + d)" data-is-muted="false">Mic</button>
+<button id="cam" aria-label="Turn off camera (⌘ + e)" data-is-muted="false">Cam</button>
+<video id="self" autoplay muted playsinline></video><video id="remote" autoplay muted playsinline></video><video id="extra" autoplay muted playsinline></video>
+<script>
+(() => {
+  let micOn = true, sender, receiver, analyser, samples;
+  const remote = document.getElementById('remote'), mic = document.getElementById('mic');
+  const remoteStream = new MediaStream();
+  const lavender = (video) => {
+    if (video.readyState < 2) return -1;
+    const c = document.createElement('canvas'); c.width = 160; c.height = 90;
+    const g = c.getContext('2d'); g.drawImage(video, 0, 0, 160, 90);
+    const d = g.getImageData(48, 50, 64, 38).data;
+    let n = 0;
+    for (let i = 0; i < d.length; i += 4) if (d[i] > 140 && d[i + 2] > d[i] + 8 && d[i + 2] > 170) n++;
+    return n / (d.length / 4);
+  };
+  const harness = window.harness = {
+    hookFirst: Boolean(window.__prismwinkHook), status: null, stream: null,
+    async start() {
+      harness.stream = await navigator.mediaDevices.getUserMedia({ video: { width: ${WIDTH}, height: ${HEIGHT} }, audio: true });
+      document.getElementById('self').srcObject = harness.stream;
+    },
+    async loopback() {
+      sender = new RTCPeerConnection(); receiver = new RTCPeerConnection();
+      sender.onicecandidate = (e) => e.candidate && receiver.addIceCandidate(e.candidate);
+      receiver.onicecandidate = (e) => e.candidate && sender.addIceCandidate(e.candidate);
+      receiver.ontrack = (e) => {
+        remoteStream.addTrack(e.track); remote.srcObject = remoteStream; remote.play().catch(() => {});
+        if (e.track.kind === 'audio') {
+          const audio = new AudioContext(); analyser = audio.createAnalyser(); analyser.fftSize = 2048; samples = new Float32Array(2048);
+          audio.createMediaStreamSource(new MediaStream([e.track])).connect(analyser); audio.resume();
+        }
+      };
+      harness.stream.getTracks().forEach((t) => sender.addTrack(t, harness.stream));
+      await sender.setLocalDescription(await sender.createOffer());
+      await receiver.setRemoteDescription(sender.localDescription);
+      await receiver.setLocalDescription(await receiver.createAnswer());
+      await sender.setRemoteDescription(receiver.localDescription);
+    },
+    async peak(ms) {
+      let best = 0; const end = performance.now() + ms;
+      while (performance.now() < end) {
+        if (analyser) { analyser.getFloatTimeDomainData(samples); best = Math.max(best, Math.sqrt(samples.reduce((s, v) => s + v * v, 0) / samples.length)); }
+        await new Promise((r) => setTimeout(r, 30));
+      }
+      return best;
+    },
+    person: () => lavender(remote),
+    async decoded() {
+      const stats = await receiver.getStats(); let frames = 0;
+      stats.forEach((s) => { if (s.type === 'inbound-rtp' && s.kind === 'video') frames = s.framesDecoded; });
+      return frames;
+    },
+    snapshot() {
+      const self = document.getElementById('self');
+      const c = document.createElement('canvas'); c.width = self.videoWidth; c.height = self.videoHeight;
+      c.getContext('2d').drawImage(self, 0, 0); return c.toDataURL('image/png');
+    },
+    async extraPerson() {
+      const extra = await navigator.mediaDevices.getUserMedia({ video: { width: ${WIDTH}, height: ${HEIGHT} } });
+      const video = document.getElementById('extra'); video.srcObject = extra; await video.play();
+      await new Promise((r) => setTimeout(r, 1200));
+      const value = lavender(video); extra.getTracks().forEach((t) => t.stop()); return value;
+    },
+    micMuted: () => mic.getAttribute('data-is-muted'),
+    audioEnabled: () => harness.stream.getAudioTracks().map((t) => t.enabled),
+    stopAll() { harness.stream?.getTracks().forEach((t) => t.stop()); sender?.close(); receiver?.close(); }
+  };
+  mic.addEventListener('click', () => {
+    micOn = !micOn;
+    harness.stream?.getAudioTracks().forEach((t) => { t.enabled = micOn; });
+    mic.setAttribute('data-is-muted', String(!micOn));
+    mic.setAttribute('aria-label', micOn ? 'Turn off microphone (⌘ + d)' : 'Turn on microphone (⌘ + d)');
+  });
+  document.getElementById('start').addEventListener('click', () => harness.start());
+  window.addEventListener('message', (e) => { if (e.source === window && e.data?.source === 'prismwink-hook' && e.data.type === 'status') harness.status = e.data; });
+})();
+</script></body></html>`;
+
+async function cameraFixture(file: string) {
+  const rgb = await sharp(path.join(root, 'tests/fixtures/camera-portrait.png')).resize(WIDTH, HEIGHT, { fit: 'cover' }).removeAlpha().raw().toBuffer();
+  const pixels = WIDTH * HEIGHT, frame = Buffer.alloc(pixels * 3 / 2);
+  const clamp = (x: number) => Math.min(255, Math.max(0, Math.round(x)));
+  for (let y = 0; y < HEIGHT; y++) for (let x = 0; x < WIDTH; x++) {
+    const j = (y * WIDTH + x) * 3, r = rgb[j]!, g = rgb[j + 1]!, b = rgb[j + 2]!;
+    frame[y * WIDTH + x] = clamp(16 + 0.257 * r + 0.504 * g + 0.098 * b);
+    if (x % 2 === 0 && y % 2 === 0) {
+      const c = (y / 2) * (WIDTH / 2) + x / 2;
+      frame[pixels + c] = clamp(128 - 0.148 * r - 0.291 * g + 0.439 * b);
+      frame[pixels + pixels / 4 + c] = clamp(128 + 0.439 * r - 0.368 * g - 0.071 * b);
     }
   }
-  const parts:Buffer[]=[Buffer.from(`YUV4MPEG2 W${w} H${h} F30:1 Ip A1:1 C420jpeg\n`)];
-  for(let n=0;n<90;n++){
-    const frame=Buffer.from(base),delta=Math.round(25*Math.sin(n*Math.PI/45));
-    for(let i=0;i<pixels;i++)frame[i]=Math.min(235,Math.max(16,base[i]!+delta));
-    parts.push(Buffer.from('FRAME\n'),frame);
-  }
-  await writeFile(fixture,Buffer.concat(parts));
+  const parts: Buffer[] = [Buffer.from(`YUV4MPEG2 W${WIDTH} H${HEIGHT} F30:1 Ip A1:1 C420jpeg\n`)];
+  for (let n = 0; n < 10; n++) parts.push(Buffer.from('FRAME\n'), frame);
+  await writeFile(file, Buffer.concat(parts));
 }
 
-try{
-  await makeCameraFixture();
-  context=await chromium.launchPersistentContext(path.join(temporary,'profile'),{
-    channel:'chromium',headless:true,viewport:{width:1440,height:1080},
-    args:[`--disable-extensions-except=${path.join(root,'dist')}`,`--load-extension=${path.join(root,'dist')}`,'--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream',`--use-file-for-fake-video-capture=${fixture}`,'--autoplay-policy=no-user-gesture-required']
-  });
-  const worker=context.serviceWorkers()[0]||await context.waitForEvent('serviceworker',{timeout:20000});
-  const id=new URL(worker.url()).hostname;
-  assert.ok(id,'The installed extension must have a service worker.');
-  pass('Manifest V3 extension loads','The built extension loaded in an isolated fresh Chromium profile, with its real background service worker.');
-  const page=await context.newPage();
-  const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
-  await page.goto(`chrome-extension://${id}/studio.html`);
-  await page.locator('#toggle-effect').waitFor();
-  await page.waitForFunction(()=>!(document.getElementById('toggle-effect') as HTMLButtonElement)?.disabled,{},{timeout:10000});
-  assert.match(await page.locator('#session-state').innerText(),/Demo.*camera off/);
-  await page.locator('#duration').focus();await page.locator('#duration').press('Home');
-  for(const effect of ['dust','pixel','confetti','smoke']){
-    await page.locator(`[data-effect="${effect}"]`).click();
-    await page.locator('#toggle-effect').click();
-    await page.waitForFunction(()=>document.getElementById('visibility-status')?.textContent?.includes('Hidden'),null,{timeout:4000});
-    await page.locator('#toggle-effect').click();
-    await page.waitForFunction(()=>document.getElementById('visibility-status')?.textContent?.includes('Visible'),null,{timeout:4000});
-  }
-  pass('React studio and four visual effects','The built React page renders and all four demo effects complete disappear/return cycles. Demo is explicitly labeled and has no microphone capture.');
-  assert.deepEqual(await page.locator('#recent-effects button').allTextContents(),['Smoke reveal','Confetti','Pixel scatter','Dust dissolve']);
-  await page.locator('#direction').selectOption('up');
-  assert.match(await page.locator('#quality-status').innerText(),/Full selected detail|Auto: reduced particle detail/);
-  pass('Direction, recent effects and quality feedback','Particle flow can be selected, successful effects form a bounded recent-history list, and the studio exposes the real renderer quality state.');
-  const hostile='<img src=x onerror=alert(1)>';
-  await page.locator('#scene-name').fill(hostile);await page.getByRole('button',{name:'Save scene',exact:true}).click();
-  assert.equal(await page.locator('#scene-list img').count(),0);
-  assert.ok((await page.locator('#scene-list').innerText()).includes(hostile));
-  await page.reload();await page.waitForFunction(()=>document.getElementById('scene-list')?.textContent?.includes('<img src=x'));
-  assert.equal(await page.locator('#scene-list img').count(),0);
-  assert.equal(await page.locator('#direction').inputValue(),'up');
-  assert.deepEqual(await page.locator('#recent-effects button').allTextContents(),['Smoke reveal','Confetti','Pixel scatter','Dust dissolve']);
-  pass('Scenes persist and names stay text','A scene survives reload. A hostile HTML-like name is shown as plain text and does not create an image node.');
-  const count=await page.locator('.saved-scene').count();
-  await page.locator('#scene-file').setInputFiles({name:'invalid.json',mimeType:'application/json',buffer:Buffer.from('{broken')});
-  await page.waitForFunction(()=>document.getElementById('notice-text')?.textContent?.includes('not valid JSON'));
-  assert.equal(await page.locator('.saved-scene').count(),count);
-  pass('Malformed scene import rejected','Invalid JSON does not corrupt or replace saved scenes.');
-  await Promise.all([page.waitForNavigation({waitUntil:'load',timeout:10000}),page.evaluate(()=>{window.dispatchEvent(new PageTransitionEvent('pagehide',{persisted:true}));window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true}));})]);
-  await page.waitForFunction(()=>!(document.getElementById('toggle-effect') as HTMLButtonElement)?.disabled,null,{timeout:10000});
-  assert.match(await page.locator('#session-state').innerText(),/Demo.*camera off/);
-  await page.locator('#toggle-effect').click();
-  await page.waitForFunction(()=>document.getElementById('visibility-status')?.textContent?.includes('Hidden'),null,{timeout:4000});
-  await page.locator('#toggle-effect').click();
-  await page.waitForFunction(()=>document.getElementById('visibility-status')?.textContent?.includes('Visible'),null,{timeout:4000});
-  pass('Persisted-page lifecycle recovers safely','A persisted pagehide/pageshow event sequence reloads into Demo with camera off and a functioning renderer, rather than leaving closed processing behind a ready-looking UI.');
-  await page.getByRole('button',{name:'Clear saved scenes',exact:true}).click();
-  await page.locator('#dismiss-notice').click();
-  await page.screenshot({path:path.join(evidence,'studio-desktop.png'),fullPage:true});
-  await page.setViewportSize({width:390,height:844});
-  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Mobile layout must not overflow horizontally.');
-  await page.screenshot({path:path.join(evidence,'studio-mobile.png'),fullPage:true});
-  pass('Responsive studio','The 390px layout has no horizontal overflow; desktop and mobile screenshots were saved.');
-  await page.setViewportSize({width:1440,height:1080});
-  await page.locator('#camera-mode').click();
-  await page.waitForFunction(()=>document.getElementById('session-state')?.textContent?.includes('Camera · local preview'),null,{timeout:60000});
-  await page.locator('#microphone-test').click();
-  await page.waitForFunction(()=>document.getElementById('visibility-status')?.textContent?.includes('Mic on locally'),null,{timeout:10000});
-  await page.locator('#capture-room').click();
-  await page.waitForFunction(()=>document.getElementById('capture-room')?.textContent?.includes('Retake'),null,{timeout:9000});
-  await page.locator('#clear-room').click();
-  assert.ok(await page.locator('#toggle-effect').isDisabled());
-  assert.ok(await page.locator('#clear-room').isDisabled());
-  assert.match(await page.locator('#visibility-status').innerText(),/Mic on locally/);
-  await page.locator('#capture-room').click();
-  await page.waitForFunction(()=>document.getElementById('capture-room')?.textContent?.includes('Retake'),null,{timeout:9000});
-  pass('Studio room capture clears independently','Clearing the room disables disappearance without stopping or muting the local camera session; a new clean-room capture enables effects again.');
-  await page.locator('#toggle-effect').click();
-  await page.waitForFunction(()=>document.getElementById('visibility-status')?.textContent?.includes('Hidden'),null,{timeout:4000});
-  assert.match(await page.locator('#visibility-status').innerText(),/Mic off/);
-  await page.locator('#microphone-test').click();
-  await page.locator('#toggle-effect').click();
-  await page.waitForFunction(()=>document.getElementById('visibility-status')?.textContent?.includes('Visible'),null,{timeout:4000});
-  assert.match(await page.locator('#visibility-status').innerText(),/Mic off/);
-  await page.locator('#stop-camera').click();
-  await page.waitForFunction(()=>document.getElementById('session-state')?.textContent?.includes('Demo'));
-  assert.equal(await page.locator('#camera-controls').count(),0);
-  pass('Studio camera, real processing and mute ownership','A permitted portrait video runs through the actual local vision worker. Camera capture, local mic mute and a keep-muted override work; Stop returns to a hardware-free demo.');
-  assert.deepEqual(errors,[],'The studio must not produce uncaught page errors.');
-  await page.close();
-  results.push(...await runMeetChecks(context));
-}catch(error){
-  results.push({check:'Browser verification',passed:false,detail:error instanceof Error?`${error.message}\n${error.stack||''}`:String(error)});
-}finally{
-  await context?.close();
-  await writeFile(path.join(evidence,'browser-results.json'),JSON.stringify({timestamp:new Date().toISOString(),checks:results,liveMeetVerified:false},null,2)+'\n');
-  await rm(temporary,{recursive:true,force:true});
+const h = (page: Page) => page.evaluate.bind(page);
+const until = (page: Page, test: () => unknown, timeout = 15000) => page.waitForFunction(test, null, { timeout, polling: 50 });
+const status = (page: Page) => page.evaluate(() => (window as unknown as HarnessWindow).harness.status!);
+
+async function savePng(page: Page, name: string) {
+  const data = await page.evaluate(() => (window as unknown as HarnessWindow).harness.snapshot());
+  await writeFile(path.join(evidence, name), Buffer.from(data.split(',')[1]!, 'base64'));
 }
-for(const result of results)console.log(`${result.passed?'PASS':'FAIL'} ${result.check}: ${result.detail}`);
-if(results.some(result=>!result.passed))process.exitCode=1;
+
+async function toggleFromShortcut(worker: Worker) {
+  await worker.evaluate(async () => {
+    const [tab] = await chrome.tabs.query({ url: 'https://meet.google.com/*' });
+    await chrome.tabs.sendMessage(tab!.id!, { type: 'prismwink-toggle' });
+  });
+}
+
+const checks: Check[] = [];
+const pass = (check: string, detail: string) => { checks.push({ check, passed: true, detail }); console.log(`PASS ${check}: ${detail}`); };
+await mkdir(evidence, { recursive: true });
+const temporary = await mkdtemp(path.join(tmpdir(), 'prismwink-'));
+let context: BrowserContext | undefined;
+try {
+  const fixture = path.join(temporary, 'camera.y4m');
+  await cameraFixture(fixture);
+  context = await chromium.launchPersistentContext(path.join(temporary, 'profile'), {
+    channel: 'chromium', headless: true, viewport: { width: 1280, height: 900 },
+    args: [`--disable-extensions-except=${path.join(root, 'dist')}`, `--load-extension=${path.join(root, 'dist')}`, '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', `--use-file-for-fake-video-capture=${fixture}`, '--autoplay-policy=no-user-gesture-required']
+  });
+  const worker = context.serviceWorkers()[0] ?? await context.waitForEvent('serviceworker', { timeout: 20000 });
+  const id = new URL(worker.url()).hostname;
+  pass('Extension loads', 'Manifest V3 extension and its service worker start in a fresh profile.');
+
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${id}/popup.html`);
+  await popup.getByRole('heading', { name: /Snap to vanish/ }).waitFor();
+  const gestureSwitch = popup.getByRole('switch', { name: /Hand gesture/ });
+  assert.equal(await gestureSwitch.isChecked(), true);
+  await gestureSwitch.click();
+  assert.deepEqual(await popup.evaluate(() => chrome.storage.local.get('prismwink')), { prismwink: { gestures: false } });
+  pass('Popup', 'Explains the gesture, shows the shortcut, and saves the hand gesture switch.');
+
+  await context.route('https://meet.google.com/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: harnessHtml }));
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.goto('https://meet.google.com/abc-defg-hij');
+  assert.equal(await h(page)(() => (window as unknown as HarnessWindow).harness.hookFirst), true, 'The camera hook must load before page scripts.');
+  const pill = page.locator('#prismwink-pill');
+  await pill.getByText('Turn on your camera').waitFor();
+  await until(page, () => (window as unknown as HarnessWindow).harness.status?.gestures === false);
+  await gestureSwitch.click();
+  await until(page, () => (window as unknown as HarnessWindow).harness.status?.gestures === true);
+  pass('Settings reach the meeting', 'Turning the hand gesture off and on in the popup updates an open Meet tab live.');
+
+  await page.getByRole('button', { name: 'Start camera' }).click();
+  await until(page, () => { const s = (window as unknown as HarnessWindow).harness.status; return s?.camera && s.vision === 'ready' && s.results > 3; }, 90000);
+  const settings = await page.evaluate(() => {
+    const track = (window as unknown as HarnessWindow).harness.stream!.getVideoTracks()[0]!;
+    return { ...track.getSettings(), label: track.label };
+  });
+  assert.equal(settings.width, WIDTH);
+  assert.ok(settings.deviceId && settings.label, 'The processed track reports the real camera identity.');
+  const before = (await status(page)).results;
+  await page.waitForTimeout(3000);
+  const after = await status(page);
+  const rate = (after.results - before) / 3;
+  pass('Local vision runs', `Segmentation and hand tracking run in the extension worker (${after.visionMs} ms per frame, ${rate.toFixed(1)} results/s with no hand in view); the output track keeps the camera's ${settings.width}×${settings.height} size, device and label.`);
+
+  await page.evaluate(() => (window as unknown as HarnessWindow).harness.loopback());
+  await until(page, () => (window as unknown as HarnessWindow).harness.person() > 0.3, 20000);
+  const loud = await page.evaluate(() => (window as unknown as HarnessWindow).harness.peak(2500));
+  assert.ok(loud > 0.005, `Receiver should hear the microphone (peak ${loud}).`);
+  await until(page, () => ((window as unknown as HarnessWindow).harness.status?.room ?? 0) > 0.3, 15000);
+  pass('Receiver sees and hears you', `A WebRTC receiver decodes the camera with the person visible and hears audio (peak RMS ${loud.toFixed(3)}). Room learned automatically: ${Math.round((await status(page)).room * 100)}% with no setup.`);
+
+  await pill.getByRole('button', { name: /Vanish/ }).click();
+  await until(page, () => (window as unknown as HarnessWindow).harness.status?.phase === 'vanishing', 2000);
+  assert.equal(await page.evaluate(() => (window as unknown as HarnessWindow).harness.micMuted()), 'true');
+  assert.deepEqual(await page.evaluate(() => (window as unknown as HarnessWindow).harness.audioEnabled()), [false]);
+  await page.waitForTimeout(900);
+  await savePng(page, 'vanish-midway.png');
+  await until(page, () => (window as unknown as HarnessWindow).harness.status?.phase === 'hidden', 6000);
+  await page.waitForTimeout(800);
+  const hiddenPerson = await page.evaluate(() => (window as unknown as HarnessWindow).harness.person());
+  const quiet = await page.evaluate(() => (window as unknown as HarnessWindow).harness.peak(1500));
+  const framesA = await page.evaluate(() => (window as unknown as HarnessWindow).harness.decoded());
+  await page.waitForTimeout(1500);
+  const framesB = await page.evaluate(() => (window as unknown as HarnessWindow).harness.decoded());
+  await savePng(page, 'hidden.png');
+  console.log(`NOTE Transition render cost ${(await status(page)).processMs} ms per 1280×720 frame.`);
+  assert.ok(hiddenPerson < 0.03, `Person must be gone from the receiver (lavender ${hiddenPerson}).`);
+  assert.ok(quiet < 0.001, `Receiver must be silent (peak ${quiet}).`);
+  assert.ok(framesB - framesA > 20, 'Video keeps flowing while hidden.');
+  pass('Vanish hides and mutes', `Meet's mic button is clicked to muted at once and the track is gated; the receiver sees the room without the person (${(hiddenPerson * 100).toFixed(1)}% sweater pixels), hears silence (peak ${quiet.toFixed(4)}), and keeps getting ${((framesB - framesA) / 1.5).toFixed(0)} fps.`);
+
+  await pill.getByRole('button', { name: /Return/ }).click();
+  await until(page, () => (window as unknown as HarnessWindow).harness.status?.phase === 'returning', 2000);
+  await page.waitForTimeout(700);
+  await savePng(page, 'return-midway.png');
+  await until(page, () => (window as unknown as HarnessWindow).harness.status?.phase === 'visible', 6000);
+  await until(page, () => (window as unknown as HarnessWindow).harness.person() > 0.3, 5000);
+  assert.equal(await page.evaluate(() => (window as unknown as HarnessWindow).harness.micMuted()), 'false');
+  await until(page, () => (window as unknown as HarnessWindow).harness.audioEnabled().every(Boolean), 3000);
+  const back = await page.evaluate(() => (window as unknown as HarnessWindow).harness.peak(2500));
+  assert.ok(back > 0.005, `Receiver should hear the microphone again (peak ${back}).`);
+  pass('Return restores camera and mic', `The person reassembles, and the mic that Prismwink muted is turned back on (peak RMS ${back.toFixed(3)}).`);
+
+  await page.getByRole('button', { name: /Turn off microphone/ }).click();
+  await toggleFromShortcut(worker);
+  await until(page, () => (window as unknown as HarnessWindow).harness.status?.phase === 'hidden', 6000);
+  await toggleFromShortcut(worker);
+  await until(page, () => (window as unknown as HarnessWindow).harness.status?.phase === 'visible', 6000);
+  await page.waitForTimeout(500);
+  assert.equal(await page.evaluate(() => (window as unknown as HarnessWindow).harness.micMuted()), 'true');
+  assert.deepEqual(await page.evaluate(() => (window as unknown as HarnessWindow).harness.audioEnabled()), [false]);
+  pass('Keyboard shortcut, and an already-muted mic stays muted', 'The shortcut message path vanishes and returns; a mic you muted yourself is never turned on.');
+
+  await page.getByRole('button', { name: /Turn on microphone/ }).click();
+  await pill.getByRole('button', { name: /Vanish/ }).click();
+  await until(page, () => (window as unknown as HarnessWindow).harness.status?.phase === 'hidden', 6000);
+  await page.getByRole('button', { name: /Turn on microphone/ }).click();
+  await until(page, () => (window as unknown as HarnessWindow).harness.audioEnabled().every(Boolean), 3000);
+  await pill.getByRole('button', { name: /Return/ }).click();
+  await until(page, () => (window as unknown as HarnessWindow).harness.status?.phase === 'visible', 6000);
+  await page.waitForTimeout(500);
+  assert.equal(await page.evaluate(() => (window as unknown as HarnessWindow).harness.micMuted()), 'false');
+  assert.deepEqual(await page.evaluate(() => (window as unknown as HarnessWindow).harness.audioEnabled()), [true]);
+  pass('Your mic choice while hidden wins', 'Unmuting in Meet while hidden is honoured immediately, and returning does not toggle it again.');
+
+  await pill.getByRole('button', { name: /Vanish/ }).click();
+  await until(page, () => (window as unknown as HarnessWindow).harness.status?.phase === 'hidden', 6000);
+  const extra = await page.evaluate(() => (window as unknown as HarnessWindow).harness.extraPerson());
+  assert.ok(extra >= 0 && extra < 0.03, `A camera opened while hidden must stay hidden (lavender ${extra}).`);
+  pass('A camera opened while hidden stays hidden', `A second camera request while hidden shows the room, not you (${(extra * 100).toFixed(1)}% sweater pixels).`);
+
+  const other = await context.newPage();
+  await other.goto('about:blank');
+  await other.bringToFront();
+  const visibility = await page.evaluate(() => document.visibilityState);
+  const bgA = await page.evaluate(() => (window as unknown as HarnessWindow).harness.decoded());
+  await page.waitForTimeout(3000);
+  const bgB = await page.evaluate(() => (window as unknown as HarnessWindow).harness.decoded());
+  await other.close();
+  await page.bringToFront();
+  assert.ok(bgB - bgA > 45, `Video must keep flowing behind another tab (${bgB - bgA} frames in 3 s).`);
+  if (visibility === 'hidden') pass('Background tab keeps streaming', `With the meeting tab hidden, the receiver still decoded ${((bgB - bgA) / 3).toFixed(0)} fps.`);
+  else console.log(`NOTE Headless Chromium kept the tab ${visibility}, so background throttling was not exercised here. Frames are camera-driven, not timer-driven; check a real background tab by hand.`);
+
+  await pill.getByRole('button', { name: /Return/ }).click();
+  await until(page, () => (window as unknown as HarnessWindow).harness.status?.phase === 'visible', 6000);
+  await page.evaluate(() => (window as unknown as HarnessWindow).harness.stopAll());
+  await until(page, () => (window as unknown as HarnessWindow).harness.status?.camera === false, 5000);
+  await pill.getByText('Turn on your camera').waitFor();
+  await page.screenshot({ path: path.join(evidence, 'meet-pill.png') });
+  assert.deepEqual(errors, [], 'No uncaught page errors.');
+  pass('Clean stop', 'Stopping the camera ends processing and the pill returns to its idle state, with no page errors.');
+} catch (error) {
+  checks.push({ check: 'Browser verification', passed: false, detail: error instanceof Error ? `${error.message}\n${error.stack ?? ''}` : String(error) });
+  console.log(`FAIL ${checks.at(-1)!.detail}`);
+} finally {
+  await context?.close();
+  await writeFile(path.join(evidence, 'browser-results.json'), JSON.stringify({ timestamp: new Date().toISOString(), checks, liveMeetVerified: false }, null, 2) + '\n');
+  await rm(temporary, { recursive: true, force: true });
+}
+if (checks.some((check) => !check.passed)) process.exitCode = 1;
