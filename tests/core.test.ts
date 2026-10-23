@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { SnapDetector, measure, type HandFrame, type Point } from '../src/gesture';
 import { backgroundOf, fillHoles, validMask } from '../src/room';
 import { dissolveField } from '../src/effects';
+import { clockTime, describe, since, type Status } from '../src/format';
 
 type Pose = { thumb: [number, number, number]; middle: [number, number, number] };
 const POSES = {
@@ -151,4 +152,28 @@ test('dissolve timing spans the person and leaves time for the last dust to drif
     if (person[i]) { low = Math.min(low, field[i]); high = Math.max(high, field[i]); }
   }
   assert.ok(Math.abs(low - 0.04) < 1e-6 && Math.abs(high - 0.72) < 1e-6);
+});
+
+test('times read as 12-hour clock with uppercase AM/PM and a running duration', () => {
+  const start = new Date(2026, 9, 23, 22, 42).getTime();
+  const plain = (text: string) => text.replace(/\u202f/g, ' ');
+  assert.equal(plain(clockTime(start, 'en-IN')), '10:42 PM');
+  assert.equal(plain(clockTime(start, 'en-US')), '10:42 PM');
+  assert.equal(plain(since(start, start + 20_000, 'en-US')), 'Since 10:42 PM');
+  assert.equal(plain(since(start, start + 7 * 60000, 'en-US')), 'Since 10:42 PM · 7 min');
+  assert.equal(plain(since(start, start + 75 * 60000, 'en-US')), 'Since 10:42 PM · 1 h 15 min');
+});
+
+test('status wording is honest for every state, including who muted the mic', () => {
+  const base: Status = { camera: true, phase: 'visible', since: 0, duration: 0, mic: 'live', vision: 'ready', error: '', hand: 'none', room: 0.9, gestures: true, notice: '' };
+  assert.equal(describe({ ...base, camera: false }).detail, 'Turn on your camera to start');
+  assert.equal(describe(base).title, 'Snap to vanish');
+  assert.equal(describe(base).pose, 'coach');
+  assert.equal(describe(base, true).pose, 'open', 'reduced motion stops the coach loop');
+  assert.equal(describe({ ...base, room: 0.4 }).detail, 'Learning your room · 40%');
+  assert.deepEqual([describe({ ...base, hand: 'armed' }).tone, describe({ ...base, hand: 'armed' }).pose], ['armed', 'pinch']);
+  assert.equal(describe({ ...base, phase: 'vanishing', mic: 'muted' }).detail, 'Mic muted by Prismwink');
+  assert.match(describe({ ...base, phase: 'hidden', mic: 'already', since: 0 }, false, 120_000).detail, /2 min · Mic was off$/);
+  assert.equal(describe({ ...base, phase: 'hidden', gestures: false }).title, 'You’re hidden');
+  assert.equal(describe({ ...base, vision: 'error', error: '' }).detail, 'Use the button or Alt+Shift+V');
 });

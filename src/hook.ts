@@ -47,6 +47,8 @@ const HIDDEN_FILL = '#101218';
   const inFlight = new Map<number, { pipe: Pipeline; width: number; height: number }>();
   let phase: Phase = 'visible';
   let phaseTimer = 0;
+  let phaseSince = Date.now();
+  let micState: 'live' | 'muted' | 'already' | 'yours' | 'unknown' = 'live';
   let vision: 'loading' | 'ready' | 'error' = 'loading';
   let visionError = Processor && Generator ? '' : 'This browser cannot process camera frames.';
   let engineOrigin = '';
@@ -68,7 +70,7 @@ const HIDDEN_FILL = '#101218';
 
   function publish() {
     const pipe = active();
-    const status = { camera: Boolean(pipe), phase, vision, error: visionError, hand, room: pipe?.room ? Math.round(pipe.room.coverage * 100) / 100 : 0, gestures, notice, processMs: Math.round(processMs), visionMs: Math.round(visionMs), results };
+    const status = { camera: Boolean(pipe), phase, since: phaseSince, duration: phase === 'vanishing' ? VANISH_MS : phase === 'returning' ? RETURN_MS : 0, mic: micState, vision, error: visionError, hand, room: pipe?.room ? Math.round(pipe.room.coverage * 100) / 100 : 0, gestures, notice, processMs: Math.round(processMs), visionMs: Math.round(visionMs), results };
     const text = JSON.stringify(status);
     if (text === lastStatus) return;
     lastStatus = text;
@@ -107,7 +109,7 @@ const HIDDEN_FILL = '#101218';
       this.gated = [];
       const button = micButton();
       const on = micOn(button);
-      if (on === false) return;
+      if (on === false) { micState = 'already'; return; }
       if (button && on) {
         button.click();
         this.clicked = true;
@@ -118,9 +120,11 @@ const HIDDEN_FILL = '#101218';
           this.gated.push(track);
         }
       }
+      micState = this.clicked || this.gated.length ? 'muted' : 'unknown';
       setTimeout(() => { if (this.clicked && micOn(micButton()) === true) this.clicked = false; }, 800);
     },
     restore() {
+      micState = 'live';
       const gated = this.gated;
       this.gated = [];
       if (this.touched) return;
@@ -136,6 +140,8 @@ const HIDDEN_FILL = '#101218';
     userChanged() {
       if (phase === 'visible' || this.touched) return;
       this.touched = true;
+      micState = 'yours';
+      publish();
       this.clicked = false;
       const gated = this.gated;
       this.gated = [];
@@ -169,6 +175,7 @@ const HIDDEN_FILL = '#101218';
 
   function setPhase(next: Phase) {
     clearTimeout(phaseTimer);
+    if (phase !== next) phaseSince = Date.now();
     phase = next;
     publish();
   }

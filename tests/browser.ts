@@ -284,6 +284,34 @@ try {
   await until(page, () => (window as unknown as HarnessWindow).harness.status?.camera === false, 5000);
   await pill.getByText('Turn on your camera').waitFor();
   await page.screenshot({ path: path.join(evidence, 'meet-pill.png') });
+
+  const answer = await worker.evaluate(async () => {
+    const [tab] = await chrome.tabs.query({ url: 'https://meet.google.com/*' });
+    return chrome.tabs.sendMessage(tab!.id!, { type: 'prismwink-status' });
+  }) as Status;
+  assert.equal(answer.camera, false);
+  assert.equal(answer.phase, 'visible');
+  const orb = pill.locator('.orb');
+  const startBox = (await pill.boundingBox())!;
+  await page.mouse.move(startBox.x + 30, startBox.y + 30);
+  await page.mouse.down();
+  await page.mouse.move(startBox.x + 330, startBox.y + 30 - 200, { steps: 8 });
+  await page.mouse.up();
+  const moved = (await pill.boundingBox())!;
+  assert.ok(Math.abs(moved.x - startBox.x - 300) < 4 && Math.abs(moved.y - startBox.y + 200) < 4, `The pill follows a drag (${JSON.stringify(startBox)} -> ${JSON.stringify(moved)}).`);
+  assert.equal(await orb.getAttribute('aria-expanded'), 'true', 'A drag that ends on the orb does not collapse it.');
+  await orb.click();
+  assert.equal(await orb.getAttribute('aria-expanded'), 'false');
+  await orb.focus();
+  await page.keyboard.press('ArrowRight');
+  await page.waitForTimeout(300);
+  await page.reload();
+  await pill.locator('.orb[aria-expanded="false"]').waitFor();
+  const restored = (await pill.boundingBox())!;
+  assert.ok(Math.abs(restored.x - moved.x - 16) < 4 && Math.abs(restored.y - moved.y) < 4, `The pill keeps its spot after reload (${restored.x},${restored.y} vs ${moved.x + 16},${moved.y}).`);
+  await pill.locator('.orb').click();
+  assert.equal(await pill.locator('.orb').getAttribute('aria-expanded'), 'true');
+  pass('Pill is movable and remembers', 'The pill drags by its body or orb, moves with arrow keys, collapses to an orb, and keeps both after a reload. The popup can read live status from the Meet tab.');
   assert.deepEqual(errors, [], 'No uncaught page errors.');
   pass('Clean stop', 'Stopping the camera ends processing and the pill returns to its idle state, with no page errors.');
 } catch (error) {
