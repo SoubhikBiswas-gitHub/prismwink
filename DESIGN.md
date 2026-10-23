@@ -54,9 +54,9 @@ Popup: a 360px panel with the promise, three steps, separate Snap and Double cla
 
 ## Icon and imagery
 
-Recommended mark: a winking prism. Two bold faceted planes form an open lens/portal with a small disappearing cutout. A small-size version reduces to the prism silhouette and a single escaping shard. This direction ties the name to refraction, a camera and disappearance. No letter monogram, robot face or generic four-point sparkle.
+Production mark: a winking camera lens. A bold violet broken ring surrounds a single curved wink, with two mint pixels escaping through the opening. Flat fills, rounded geometry and strong contrast keep the mark readable at toolbar sizes. No gradients, letter monogram or sparkle cluster.
 
-The existing visual board is a theme study, not a final production icon or a measured font rendering. The production mark needs an editable vector, optical adjustment at 16 and 32px, and small-size legibility checks before release.
+The existing visual board is a historical theme study. The editable production vector is public/assets/icon.svg; matching toolbar icons are provided at 16, 32, 48 and 128px, with the store source in store/source/store-icon.svg.
 
 Use original, realistic camera scenes for promotional art. Effect previews show a person transforming and the room behind them. Show the actual product once implemented. Do not present illustrative mockups as working software or invent ratings and user counts.
 

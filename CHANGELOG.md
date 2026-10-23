@@ -5,6 +5,7 @@
 Rebuilt around the one thing Prismwink is for: snap to vanish and mute, snap to come back.
 
 - Works with no setup: the room behind you is learned automatically, and unseen areas are filled in.
+- A new flat winking-lens icon and five current-product store screenshots replace the old studio artwork.
 - Double clap provides a second camera-based gesture; snap and double clap can be enabled independently.
 - The meeting pill can be moved, collapsed and restored, and the popup supports automatic, light and dark themes.
 - While hidden, the real empty room is learned after you walk away, without exposing anyone who re-enters the frame.

@@ -14,7 +14,7 @@ Prepared 24 October 2026. Release candidate: 1.0.0. Packaging and review submiss
 
 ## Artwork pack
 
-The 128×128 store icon is in store/graphics/icon-128.png and its source is store/source/store-icon.svg. The previous screenshots and promo tiles show the removed practice studio and must be replaced before submission. The current controls screenshot and both promotional tiles are generated from a capture of the actual installed popup. They label its illustrated preview accurately; they are not evidence of a live Meet call. Regenerate with npm run test:browser and npm run store:assets. No ratings, user counts or unverified live-call claims.
+The 128×128 store icon is in store/graphics/icon-128.png and its source is store/source/store-icon.svg. The previous screenshots and promo tiles show the removed practice studio and must be replaced before submission. The five current screenshots cover the controls, vanish effect, return effect, visual double clap and microphone ownership. The controls screenshots and marquee promotional tile use a capture of the actual installed popup. The small promotional tile uses the product icon and text. Effect frames come from the packaged extension in the local camera test with a sample image; they are explicitly labelled as test captures. They label its illustrated preview accurately; they are not evidence of a live Meet call. Regenerate with npm run test:browser and npm run store:assets. No ratings, user counts or unverified live-call claims.
 
 ## Real-call acceptance still pending
 
@@ -38,8 +38,8 @@ No purchased domain or separate application hosting is required. The public repo
 
 ## 1.0.0 package verification
 
-- Desktop archive: Prismwink-v1.0.0.zip; 13,251,681 bytes; 34 files.
-- SHA-256: c0c162ad3f758d7c08deb21bdc60f81d4ba4d0d84a56ff86bfb77ac583c06ff1.
+- Desktop archive: Prismwink-v1.0.0.zip; 13,168,509 bytes; 29 files.
+- SHA-256: 39625159829599e170bc1bc2de81eab1ce0196993e4898e49bf6e857c4b7a5d5.
 - ZIP integrity passed; every packaged file matches the tested production build. No source maps or unsafe archive paths.
 - Typecheck, production build and 37 unit tests passed. Both browser regression tests passed, alongside the local receiving-peer browser workflow.
 - These checks do not establish real Google Meet compatibility, background-call reliability or low-powered hardware performance. The real-call acceptance list above remains outstanding.
@@ -50,3 +50,7 @@ No purchased domain or separate application hosting is required. The public repo
 - [Privacy form preparation](privacy-disclosures.md)
 - [Reviewer instructions](reviewer-instructions.md)
 - [Changelog](../CHANGELOG.md)
+
+## Owner acceptance
+
+On 24 October 2026, the owner confirmed testing a real receiving-side call for the 1.0.0 submission and approved replacing all old listing images, including the store icon. This is owner-reported acceptance, not an independently observed test. Long-call, alternate hardware and other manual checks listed above have no independently recorded results.
