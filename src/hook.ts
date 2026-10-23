@@ -25,6 +25,10 @@ interface Pipeline {
   liveMask: OffscreenCanvas | null;
   room: RoomModel | null;
   roomImage: OffscreenCanvas | null;
+  roomNext: OffscreenCanvas | null;
+  roomFadeAt: number;
+  emptySince: number;
+  roomRefreshAt: number;
   transition: DustTransition | null;
   inFlight: boolean;
   sentAt: number;
@@ -33,6 +37,9 @@ interface Pipeline {
 const VANISH_MS = 2400;
 const RETURN_MS = 1800;
 const HIDDEN_FILL = '#101218';
+const EMPTY_MS = 600;
+const ROOM_REFRESH_MS = 1000;
+const ROOM_FADE_MS = 600;
 
 (() => {
   const marker = window as Window & { __prismwinkHook?: boolean };
@@ -194,7 +201,14 @@ const HIDDEN_FILL = '#101218';
     const source = snapshotSource();
     for (const pipe of pipelines) {
       if (pipe.closed || !pipe.width) continue;
-      if (kind === 'vanish') pipe.roomImage = pipe.room && pipe.room.coverage > 0.01 ? pipe.room.complete() : null;
+      if (kind === 'vanish') {
+        pipe.roomImage = pipe.room && pipe.room.coverage > 0.01 ? pipe.room.complete() : null;
+        pipe.roomNext = null;
+        pipe.emptySince = 0;
+      } else if (pipe.roomNext) {
+        pipe.roomImage = pipe.roomNext;
+        pipe.roomNext = null;
+      }
       const mask = source?.mask ?? { width: 1, height: 1, data: new Uint8Array([255]) };
       pipe.transition = new DustTransition({ kind, width: pipe.width, height: pipe.height, snapshot: source?.frame ?? pipe.analysed, mask, start: now, duration: kind === 'vanish' ? VANISH_MS : RETURN_MS, reducedMotion: reducedMotion || !source });
     }
@@ -263,7 +277,19 @@ const HIDDEN_FILL = '#101218';
     const context = pipe.context;
     context.globalCompositeOperation = 'copy';
     context.globalAlpha = 1;
-    if (pipe.roomImage) context.drawImage(pipe.roomImage, 0, 0, pipe.width, pipe.height);
+    if (pipe.roomNext) {
+      const fade = Math.min(1, (performance.now() - pipe.roomFadeAt) / ROOM_FADE_MS);
+      if (pipe.roomImage) context.drawImage(pipe.roomImage, 0, 0, pipe.width, pipe.height);
+      else {
+        context.fillStyle = HIDDEN_FILL;
+        context.fillRect(0, 0, pipe.width, pipe.height);
+      }
+      context.globalCompositeOperation = 'source-over';
+      context.globalAlpha = fade;
+      context.drawImage(pipe.roomNext, 0, 0, pipe.width, pipe.height);
+      context.globalAlpha = 1;
+      if (fade >= 1) { pipe.roomImage = pipe.roomNext; pipe.roomNext = null; }
+    } else if (pipe.roomImage) context.drawImage(pipe.roomImage, 0, 0, pipe.width, pipe.height);
     else {
       context.fillStyle = HIDDEN_FILL;
       context.fillRect(0, 0, pipe.width, pipe.height);
@@ -385,7 +411,7 @@ const HIDDEN_FILL = '#101218';
     const pipe: Pipeline = {
       raw, outputs: new Set(), reader: processor.readable.getReader(), writer: generator.writable.getWriter(), closed: false,
       width: 0, height: 0, canvas, context, pending: new OffscreenCanvas(1, 1), analysed: new OffscreenCanvas(1, 1),
-      mask: null, maskAt: 0, liveMask: null, room: null, roomImage: null, transition: null, inFlight: false, sentAt: 0
+      mask: null, maskAt: 0, liveMask: null, room: null, roomImage: null, roomNext: null, roomFadeAt: 0, emptySince: 0, roomRefreshAt: 0, transition: null, inFlight: false, sentAt: 0
     };
     dress(generator, pipe);
     raw.addEventListener('ended', () => closePipeline(pipe), { once: true });
@@ -393,6 +419,20 @@ const HIDDEN_FILL = '#101218';
     void pump(pipe);
     publish();
     return generator;
+  }
+
+  // Once you have walked away, the whole room is visible; learn it so the gap behind you becomes the real room.
+  function learnEmptyRoom(pipe: Pipeline, mask: PersonMask, now: number) {
+    let person = 0;
+    for (let i = 0; i < mask.data.length; i++) if (mask.data[i] > 64) person++;
+    if (person / mask.data.length > 0.01) { pipe.emptySince = 0; return; }
+    if (!pipe.emptySince) pipe.emptySince = now;
+    if (now - pipe.emptySince < EMPTY_MS || !pipe.room) return;
+    pipe.room.learn(pipe.analysed, mask, true);
+    if (now - pipe.roomRefreshAt < ROOM_REFRESH_MS || pipe.roomNext) return;
+    pipe.roomRefreshAt = now;
+    pipe.roomNext = pipe.room.complete();
+    pipe.roomFadeAt = now;
   }
 
   function onResult(data: { id: number; mask?: PersonMask; snap?: boolean; hand?: string; clap?: boolean; clapPending?: boolean; ms?: number }) {
@@ -411,6 +451,7 @@ const HIDDEN_FILL = '#101218';
       pipe.maskAt = now;
       pipe.liveMask = maskSurface(data.mask);
       if (phase === 'visible' && !pipe.transition) pipe.room?.learn(pipe.analysed, data.mask);
+      else if (phase === 'hidden' && !pipe.transition) learnEmptyRoom(pipe, data.mask, now);
     }
     hand = claps && data.clapPending ? 'clap' : (gestures || claps) && ['hand', 'armed'].includes(data.hand ?? '') ? data.hand! : 'none';
     if (hand !== 'none') handSeenAt = now;

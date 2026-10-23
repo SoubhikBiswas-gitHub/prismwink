@@ -10,7 +10,7 @@
     "check": "npm run typecheck && npm test && npm run build",
     "preview": "vite preview --host 127.0.0.1",
     "package": "node scripts/package.mjs",
-    "test:browser": "tsx tests/browser.ts && PRISMWINK_BROWSER=1 tsx --test tests/engine.regression-1.test.ts",
+    "test:browser": "tsx tests/browser.ts && PRISMWINK_BROWSER=1 tsx --test tests/engine.regression-1.test.ts tests/hidden-room.test.ts",
     "typecheck": "tsc --noEmit",
     "dev": "node scripts/prepare.mjs && vite",
     "publish:package": "tsx scripts/publish-package.ts"

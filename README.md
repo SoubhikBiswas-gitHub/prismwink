@@ -14,7 +14,7 @@ Prismwink is a Chrome extension. Everything runs on your computer: the camera, t
 
 A small pill in the lower-left corner shows what Prismwink sees. "Hand seen" means your hand is tracked, and "Now snap" means the pinch is armed. The pill also has a Vanish/Return button. The keyboard shortcut is **Alt+Shift+V**; change it at `chrome://extensions/shortcuts`. The popup has separate switches for the snap and the double clap. A double clap is two quick claps followed by a pause; one clap or applause of three or more is ignored.
 
-There is no setup step and nobody is asked to move. Prismwink quietly learns your room from the background around you while you are visible, and any area it has never seen, usually right behind you, is filled in.
+There is no setup step and nobody is asked to move. Prismwink quietly learns your room from the background around you while you are visible, and any area it has never seen, usually right behind you, is filled in. If you walk away while hidden, Prismwink waits until nobody is in frame, then learns the whole empty room and fades the gap behind you into the real room. It stops learning the moment anyone appears.
 
 ## How it works
 

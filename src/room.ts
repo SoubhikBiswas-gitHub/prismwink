@@ -123,13 +123,14 @@ export class RoomModel {
 
   get coverage() { return this.seen ? this.seenCount / this.seen.length : 0; }
 
-  learn(frame: CanvasImageSource, mask: PersonMask) {
+  learn(frame: CanvasImageSource, mask: PersonMask, empty = false) {
     if (!this.seen || this.seen.length !== mask.data.length || this.weights?.width !== mask.width || this.weights.height !== mask.height) {
       this.seen = new Uint8Array(mask.data.length);
       this.seenCount = 0;
       this.weights = new OffscreenCanvas(mask.width, mask.height);
     }
-    const background = backgroundOf(mask, Math.max(2, Math.round(mask.width / 50)));
+    // With nobody in frame only confident detections are excluded, so stray plant or shadow pixels still update.
+    const background = empty ? backgroundOf(mask, 1, 128) : backgroundOf(mask, Math.max(2, Math.round(mask.width / 50)));
     const context = this.weights.getContext('2d') as Context;
     const pixels = context.createImageData(mask.width, mask.height);
     for (let i = 0; i < background.length; i++) {

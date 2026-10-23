@@ -14,7 +14,7 @@ Snap your fingers on camera and turn to dust.
 
 Prismwink adds one simple trick to Google Meet. Raise a hand, press your thumb and middle finger together, and snap. You dissolve into dust, your room stays behind, and your microphone mutes. Snap again and you reassemble, with your microphone back on.
 
-No setup. Prismwink quietly learns the room behind you while you talk, so there is nothing to capture and no need to move.
+No setup. Prismwink quietly learns the room behind you while you talk, so there is nothing to capture and no need to move. Step away while hidden and the empty room fills itself in for real.
 
 Your microphone, your call. Prismwink mutes with Meet's own button, so everyone sees you as muted. It turns the mic back on only if it muted it. A mic you muted yourself stays muted.
 
