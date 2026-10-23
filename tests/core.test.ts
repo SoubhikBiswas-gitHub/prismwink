@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { SnapDetector, measure, type HandFrame, type Point } from '../src/gesture';
 import { backgroundOf, fillHoles, validMask } from '../src/room';
 import { dissolveField } from '../src/effects';
-import { clockTime, describe, since, type Status } from '../src/format';
+import { clockTime, describe, friendlyError, since, type Status } from '../src/format';
 
 type Pose = { thumb: [number, number, number]; middle: [number, number, number] };
 const POSES = {
@@ -177,4 +177,14 @@ test('status wording is honest for every state, including who muted the mic', ()
   assert.match(describe({ ...base, phase: 'hidden', mic: 'already', since: 0 }, false, 120_000).detail, /2 min · Mic was off$/);
   assert.equal(describe({ ...base, phase: 'hidden', gestures: false }).title, 'You’re hidden');
   assert.equal(describe({ ...base, vision: 'error', error: '' }).detail, 'Use the button or Alt+Shift+V');
+});
+
+test('engine failures become one plain sentence, never a stack trace', () => {
+  const trace = 'Local camera processing could not load: INTERNAL: Service "kGpuService", required by node ...\n=== Source Location Trace: ===\nthird_party/mediapipe/framework/calculator_graph.cc:737';
+  assert.equal(friendlyError(trace), 'Graphics acceleration is off in Chrome, so the dust effect is unavailable.');
+  assert.equal(friendlyError('Local camera processing took too long to load.'), 'Gesture tracking took too long to load. Reload the Meet tab to retry.');
+  assert.equal(friendlyError('This browser cannot process camera frames.'), 'This version of Chrome cannot run camera effects. Update Chrome to use Prismwink.');
+  assert.equal(friendlyError('Local camera processing could not load: model file missing\nstack line'), 'model file missing');
+  assert.equal(friendlyError(''), 'Gesture tracking is unavailable. Use the button or Alt+Shift+V.');
+  assert.ok(friendlyError('x'.repeat(200)).length <= 90);
 });

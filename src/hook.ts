@@ -1,5 +1,6 @@
 import { DustTransition, maskSurface } from './effects';
 import { RoomModel, validMask, type PersonMask } from './room';
+import { friendlyError } from './format';
 
 type Phase = 'visible' | 'vanishing' | 'hidden' | 'returning';
 type Context = OffscreenCanvasRenderingContext2D;
@@ -51,7 +52,7 @@ const HIDDEN_FILL = '#101218';
   let micState: 'live' | 'muted' | 'already' | 'yours' | 'unknown' = 'live';
   let vision: 'loading' | 'ready' | 'error' = 'loading';
   let effects: 'full' | 'limited' = 'full';
-  let visionError = Processor && Generator ? '' : 'This browser cannot process camera frames.';
+  let visionError = Processor && Generator ? '' : friendlyError('This browser cannot process camera frames.');
   let engineOrigin = '';
   let gestures = true;
   let reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -313,7 +314,7 @@ const HIDDEN_FILL = '#101218';
         try {
           output = render(pipe, frame);
         } catch (error) {
-          visionError = error instanceof Error ? `Camera effect failed: ${error.message}` : 'Camera effect failed.';
+          visionError = friendlyError(error instanceof Error ? error.message : '');
           pipe.transition = null;
           if (phase === 'returning') setPhase('visible');
           if (phase === 'vanishing') setPhase('hidden');
@@ -428,7 +429,7 @@ const HIDDEN_FILL = '#101218';
       try {
         return new MediaStream([...videos.map(createPipeline), ...stream.getAudioTracks()]);
       } catch (error) {
-        visionError = error instanceof Error ? error.message : 'Camera effects are unavailable.';
+        visionError = friendlyError(error instanceof Error ? error.message : '');
         publish();
         if (phase === 'visible') return stream;
         stream.getTracks().forEach((track) => track.stop());
@@ -443,7 +444,7 @@ const HIDDEN_FILL = '#101218';
     if (data.source === 'prismwink-engine') {
       if (!engineOrigin || event.origin !== engineOrigin || event.source !== engineFrame()?.contentWindow) return;
       if (data.type === 'ready') { vision = 'ready'; effects = data.segmentation === false ? 'limited' : 'full'; if (Processor && Generator) visionError = ''; publish(); }
-      else if (data.type === 'error') { vision = 'error'; visionError = String(data.message || 'Local camera processing is unavailable.'); publish(); }
+      else if (data.type === 'error') { vision = 'error'; visionError = friendlyError(data.message); publish(); }
       else if (data.type === 'result') onResult(data);
       else if (data.type === 'frame-error') {
         const entry = inFlight.get(data.id);

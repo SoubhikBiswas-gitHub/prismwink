@@ -36,3 +36,14 @@ export function describe(status: Status, reducedMotion = false, now = Date.now()
   if (status.hand === 'hand') return { tone: 'hand', pose: 'open', title: 'Hand seen', detail: room || 'Press thumb and middle finger together' };
   return { tone: 'ready', pose: coach, title: 'Snap to vanish', detail: room || 'Raise a hand, pinch, then snap' };
 }
+
+// Turns engine and browser failures into one plain sentence for the pill.
+export function friendlyError(raw: unknown): string {
+  const text = String(raw ?? '').trim();
+  if (/kGpuService|webgl|gl_context/i.test(text)) return 'Graphics acceleration is off in Chrome, so the dust effect is unavailable.';
+  if (/took too long/i.test(text)) return 'Gesture tracking took too long to load. Reload the Meet tab to retry.';
+  if (/cannot process camera frames/i.test(text)) return 'This version of Chrome cannot run camera effects. Update Chrome to use Prismwink.';
+  const line = text.split('\n')[0].replace(/^Local camera processing could not load:\s*/i, '').trim();
+  if (!line) return 'Gesture tracking is unavailable. Use the button or Alt+Shift+V.';
+  return line.length > 90 ? `${line.slice(0, 87)}…` : line;
+}

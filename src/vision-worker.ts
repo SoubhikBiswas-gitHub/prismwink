@@ -23,6 +23,8 @@ async function load() {
     minTrackingConfidence: 0.5
   });
   // The segmenter needs WebGL even on the CPU delegate; without it the gesture still works and the effect degrades to a fade.
+  const probe = new OffscreenCanvas(1, 1);
+  if (!probe.getContext('webgl2') && !new OffscreenCanvas(1, 1).getContext('webgl')) return;
   try {
     segmenter = await ImageSegmenter.createFromOptions(files, {
       baseOptions: { modelAssetPath: `${root}selfie_segmenter_landscape.tflite`, delegate: 'CPU' },
