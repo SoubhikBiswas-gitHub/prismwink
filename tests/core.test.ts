@@ -171,6 +171,7 @@ test('status wording is honest for every state, including who muted the mic', ()
   assert.equal(describe(base).pose, 'coach');
   assert.equal(describe(base, true).pose, 'open', 'reduced motion stops the coach loop');
   assert.equal(describe({ ...base, room: 0.4 }).detail, 'Learning your room · 40%');
+  assert.equal(describe({ ...base, effects: 'limited' }).detail, 'Dust effect needs graphics acceleration');
   assert.deepEqual([describe({ ...base, hand: 'armed' }).tone, describe({ ...base, hand: 'armed' }).pose], ['armed', 'pinch']);
   assert.equal(describe({ ...base, phase: 'vanishing', mic: 'muted' }).detail, 'Mic muted by Prismwink');
   assert.match(describe({ ...base, phase: 'hidden', mic: 'already', since: 0 }, false, 120_000).detail, /2 min · Mic was off$/);

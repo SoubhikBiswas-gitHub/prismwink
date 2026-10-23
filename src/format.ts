@@ -16,12 +16,12 @@ export function since(start: number, now = Date.now(), locale?: string): string 
   return `Since ${at} · ${Math.floor(minutes / 60)} h ${minutes % 60} min`;
 }
 
-export interface Status { camera: boolean; phase: Phase; since: number; duration: number; mic: Mic; vision: 'loading' | 'ready' | 'error'; error: string; hand: 'none' | 'hand' | 'armed'; room: number; gestures: boolean; notice: string }
+export interface Status { camera: boolean; phase: Phase; since: number; duration: number; mic: Mic; vision: 'loading' | 'ready' | 'error'; effects?: 'full' | 'limited'; error: string; hand: 'none' | 'hand' | 'armed'; room: number; gestures: boolean; notice: string }
 export interface View { tone: 'idle' | 'ready' | 'hand' | 'armed' | 'busy' | 'hidden' | 'error'; pose: 'open' | 'pinch' | 'snapped' | 'coach'; title: string; detail: string }
 
 export function describe(status: Status, reducedMotion = false, now = Date.now()): View {
   const gesture = status.gestures && status.vision === 'ready';
-  const room = status.room < 0.6 ? `Learning your room · ${Math.round(status.room * 100)}%` : '';
+  const room = status.effects === 'limited' ? 'Dust effect needs graphics acceleration' : status.room < 0.6 ? `Learning your room · ${Math.round(status.room * 100)}%` : '';
   const coach = gesture && !reducedMotion ? 'coach' : 'open';
   switch (status.phase) {
     case 'vanishing': return { tone: 'busy', pose: 'snapped', title: 'Vanishing…', detail: status.mic === 'muted' ? 'Mic muted by Prismwink' : MIC_TEXT[status.mic] };

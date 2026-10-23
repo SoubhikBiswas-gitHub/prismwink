@@ -50,6 +50,7 @@ const HIDDEN_FILL = '#101218';
   let phaseSince = Date.now();
   let micState: 'live' | 'muted' | 'already' | 'yours' | 'unknown' = 'live';
   let vision: 'loading' | 'ready' | 'error' = 'loading';
+  let effects: 'full' | 'limited' = 'full';
   let visionError = Processor && Generator ? '' : 'This browser cannot process camera frames.';
   let engineOrigin = '';
   let gestures = true;
@@ -70,7 +71,7 @@ const HIDDEN_FILL = '#101218';
 
   function publish() {
     const pipe = active();
-    const status = { camera: Boolean(pipe), phase, since: phaseSince, duration: phase === 'vanishing' ? VANISH_MS : phase === 'returning' ? RETURN_MS : 0, mic: micState, vision, error: visionError, hand, room: pipe?.room ? Math.round(pipe.room.coverage * 100) / 100 : 0, gestures, notice, processMs: Math.round(processMs), visionMs: Math.round(visionMs), results };
+    const status = { camera: Boolean(pipe), phase, since: phaseSince, duration: phase === 'vanishing' ? VANISH_MS : phase === 'returning' ? RETURN_MS : 0, mic: micState, vision, effects, error: visionError, hand, room: pipe?.room ? Math.round(pipe.room.coverage * 100) / 100 : 0, gestures, notice, processMs: Math.round(processMs), visionMs: Math.round(visionMs), results };
     const text = JSON.stringify(status);
     if (text === lastStatus) return;
     lastStatus = text;
@@ -441,7 +442,7 @@ const HIDDEN_FILL = '#101218';
     if (!data || typeof data !== 'object') return;
     if (data.source === 'prismwink-engine') {
       if (!engineOrigin || event.origin !== engineOrigin || event.source !== engineFrame()?.contentWindow) return;
-      if (data.type === 'ready') { vision = 'ready'; if (Processor && Generator) visionError = ''; publish(); }
+      if (data.type === 'ready') { vision = 'ready'; effects = data.segmentation === false ? 'limited' : 'full'; if (Processor && Generator) visionError = ''; publish(); }
       else if (data.type === 'error') { vision = 'error'; visionError = String(data.message || 'Local camera processing is unavailable.'); publish(); }
       else if (data.type === 'result') onResult(data);
       else if (data.type === 'frame-error') {
