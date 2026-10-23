@@ -9,3 +9,4 @@ playwright-report/
 public/vision-worker.js
 public/assets/wasm/
 .publish-package.lock
+.gstack/
