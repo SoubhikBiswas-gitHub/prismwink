@@ -28,4 +28,4 @@ Prismwink uses this data only for the features above, in line with the [Chrome W
 
 ## Contact
 
-Raise questions through the [project issues](https://github.com/SoubhikBiswas-gitHub/prismwink/issues). Changes to this policy will be published here with a new effective date.
+Raise questions through the [project issues](https://github.com/soubhik-biswas/prismwink/issues). Changes to this policy will be published here with a new effective date.

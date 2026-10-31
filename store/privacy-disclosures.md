@@ -16,6 +16,6 @@ Remote code: No. All JavaScript, WebAssembly and model files are packaged.
 
 Camera frames, temporary person outlines and hand landmarks, a learned room image held in memory, the microphone on/muted state, and local gesture, theme and pill-placement preferences. Used only for the feature above, never sent anywhere by the extension. Map these to the dashboard's current categories in the live form; local-only handling is still handling.
 
-No sale, advertising or unrelated use. Public policy: https://github.com/SoubhikBiswas-gitHub/prismwink/blob/main/PRIVACY.md
+No sale, advertising or unrelated use. Public policy: https://github.com/soubhik-biswas/prismwink/blob/main/PRIVACY.md
 
 Account fields: use the existing verified publisher account and check its details in the dashboard. Do not change trader or legal status automatically.

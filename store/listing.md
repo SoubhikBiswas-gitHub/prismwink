@@ -31,9 +31,9 @@ Good to know:
 
 Language: English
 Category: Communication
-Homepage: https://github.com/SoubhikBiswas-gitHub/prismwink
-Support: https://github.com/SoubhikBiswas-gitHub/prismwink/issues
-Privacy policy: https://github.com/SoubhikBiswas-gitHub/prismwink/blob/main/PRIVACY.md
+Homepage: https://github.com/soubhik-biswas/prismwink
+Support: https://github.com/soubhik-biswas/prismwink/issues
+Privacy policy: https://github.com/soubhik-biswas/prismwink/blob/main/PRIVACY.md
 Price: Free
 Mature content: No
 
